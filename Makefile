@@ -1,41 +1,40 @@
-OUTPUT = main # Referenced as Handler in template.yaml
-PACKAGED_TEMPLATE = packaged.yaml
-S3_BUCKET := $(S3_BUCKET)
-STACK_NAME := $(STACK_NAME)
-TEMPLATE = template.yaml
+# guitars-webapp Makefile
+#
+# Required environment variables for deploy/invalidate:
+#   BUCKET  - S3 bucket name (e.g. the BucketName output from template.yaml)
+#   DIST    - CloudFront distribution ID (DistributionId output from template.yaml)
+#
+# Required environment variables for build (passed through to Vite):
+#   VITE_GUITARS_API_BASE_URL
+#   VITE_GUITARS_BEARER_TOKEN   (optional; see README security section)
 
-.PHONY: test
-test:
-	go test ./...
+BUCKET ?=
+DIST   ?=
 
-.PHONY: clean
-clean:
-	rm -f $(OUTPUT) $(PACKAGED_TEMPLATE)
+.PHONY: install dev test lint build deploy invalidate clean
 
-.PHONY: install
 install:
-	go get -d ./...
-	go get -t ./...
+	npm install
 
-main: ./src/main.go
-	go build -o $(OUTPUT) ./src/main.go
+dev:
+	npm run dev
 
-# compile the code to run in Lambda (local or real)
-.PHONY: lambda
-lambda:
-	GOOS=linux GOARCH=amd64 $(MAKE) main
+test:
+	npx vitest run
 
-.PHONY: build
-build: clean lambda
+lint:
+	npx tsc --noEmit
 
-.PHONY: api
-api: build
-	sam local start-api
+build:
+	npm run build
 
-.PHONY: package
-package: test build
-	sam package --template-file $(TEMPLATE) --s3-bucket $(S3_BUCKET) --output-template-file $(PACKAGED_TEMPLATE)
+deploy:
+	@if [ -z "$(BUCKET)" ]; then echo "BUCKET is required"; exit 1; fi
+	aws s3 sync dist/ s3://$(BUCKET) --delete
 
-.PHONY: deploy
-deploy: test package
-	sam deploy --stack-name $(STACK_NAME) --template-file $(PACKAGED_TEMPLATE) --capabilities CAPABILITY_IAM
+invalidate:
+	@if [ -z "$(DIST)" ]; then echo "DIST is required"; exit 1; fi
+	aws cloudfront create-invalidation --distribution-id $(DIST) --paths "/*"
+
+clean:
+	rm -rf dist node_modules
