@@ -1,0 +1,24 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: guitars-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,secretsmanager
+      - DEBUG=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
+    volumes:
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh:ro
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - guitars-net
+
+networks:
+  guitars-net:
+    name: guitars-net
+
+volumes:
+  localstack-data:
