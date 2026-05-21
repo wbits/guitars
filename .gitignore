@@ -2,6 +2,8 @@
 
 packaged.yaml
 /main
+/build/
+/bootstrap
 
 # compiled output
 /dist
