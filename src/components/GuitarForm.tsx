@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   CURRENCIES,
   guitarInputSchema,
@@ -18,10 +19,26 @@ export interface GuitarFormProps {
   serverError?: string | null;
 }
 
+/**
+ * react-hook-form's useFieldArray requires object entries, so we wrap each
+ * picture URL in `{ url }` for the form state and then unwrap on submit via
+ * a zod `.transform()`. The resolver still enforces the domain rules.
+ */
+const formSchema = guitarInputSchema
+  .omit({ pictures: true })
+  .extend({
+    pictures: z.array(z.object({ url: z.string() })).default([]),
+  })
+  .transform((value) => ({
+    ...value,
+    pictures: value.pictures.map((p) => p.url),
+  }))
+  .pipe(guitarInputSchema);
+
 type FormShape = {
   brand: string;
   typeName: string;
-  buildYear: number | string;
+  buildYear: number;
   priceAmount: number | undefined;
   priceCurrency: 'EUR' | 'USD';
   pictures: { url: string }[];
@@ -56,7 +73,7 @@ export const GuitarForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FormShape, unknown, GuitarInput>({
-    resolver: zodResolver(guitarInputSchema) as never,
+    resolver: zodResolver(formSchema) as never,
     defaultValues: toFormShape(initialValues),
     mode: 'onBlur',
   });
