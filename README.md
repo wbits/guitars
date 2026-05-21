@@ -1,44 +1,125 @@
-# Go Lambda workflow for AWS
+# Guitars
 
-This is a basic template repo for deploying an AWS Lambda function in Go. It uses AWS Lambda, S3, and Cloudformation for automating storage and deployment of Go lambda functions.
+A small AWS-Lambda-backed API that exposes my personal guitar collection.
 
-You can either fork or use as template through Github.   
+## Endpoints
 
-## Requirements
+All endpoints are protected by a shared bearer token. Send it as
+`Authorization: Bearer <token>` on every request.
 
-- [Go Lang](https://golang.org/doc/install)
-- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-- Proper `aws configure` settings that will allow you to connect to AWS Lambda, S3, IAM, and CloudFormation
+| Method | Path             | Description                       |
+| ------ | ---------------- | --------------------------------- |
+| GET    | `/guitar`        | list every guitar in the collection |
+| GET    | `/guitar/{id}`   | retrieve a single guitar          |
+| POST   | `/guitar`        | add a new guitar                  |
+| PUT    | `/guitar/{id}`   | replace an existing guitar        |
+| DELETE | `/guitar/{id}`   | remove a guitar                   |
 
-## Getting started
+The JSON body for POST/PUT looks like:
 
-First, make sure you have all the required CLI tools installed!
+```json
+{
+  "serialNumber": "SN-12345",
+  "pictures": ["https://example.com/front.jpg"],
+  "description": "1996 sunburst",
+  "brand": "Fender",
+  "typeName": "Stratocaster",
+  "buildYear": 1996,
+  "priceAmount": 199900,
+  "priceCurrency": "EUR"
+}
+```
 
-Begin by installing all go dependencies, run: `make install`
+Prices are stored in **minor units** (cents). `199900` therefore means
+EUR&nbsp;1999,00. The only currencies currently accepted are `EUR` and `USD`.
 
-Once all dependencies are installed, you can start the API by running: `make api`. Visit `http://127.0.0.1:3000/` in your browser to see your Lambda execution! 
+## Architecture
 
-Finally, update `main.go` to fit your needs! 
+The project follows a small Domain-Driven Design layout, built test-first.
 
-## Included commands
+```
+cmd/lambda/                       # lambda entry point (provided.al2)
+internal/guitarcollection/
+    domain/                       # Guitar aggregate, Money VO, repository port
+    application/                  # use-case service
+    infrastructure/
+        persistence/              # in-memory + DynamoDB adapters
+        auth/                     # bearer-token authenticator (Secrets Manager)
+    interfaces/http/              # API Gateway proxy adapter
+template.yaml                     # SAM/CloudFormation: API Gateway + Lambda + DynamoDB + Secret
+docker-compose.yml                # LocalStack for local development
+scripts/localstack-init.sh        # creates the local table + secret
+```
 
-Most of the commands have been extracted into a make file. To run any of the the following commands type `make COMMAND_GOES_HERE`
+The bounded context is **GuitarCollection** and the single aggregate is
+**Guitar**. All invariants live in `domain/guitar.go`; the application service
+in `application/service.go` orchestrates use-cases without owning business
+rules.
 
-List of commands:
+A future scraping subsystem (eBay, Marktplaats, Reverb) can be added as a
+separate package inside `internal/` consuming the same `domain.Repository`
+port, with its own application service.
 
-- `test` - runs tests using `go test`
-- `install` - installs all go dependencies
-- `main` - builds the app for environment
-- `lambda` - builds app for environment AWS uses in the cloud
-- `api` - starts local API using Docker environment provided by `SAM CLI` (runs `build`)
-- `package` - uses `sam-cli` to create `packaged.yaml` file for CloudFormation. (Runs `test` and `build` before)
-- `deploy` -  uses `sam-cli` to deploy the app on AWS (Runs `test` and `package`)
-- `clean` -  cleans up app by removing old `packaged.yaml` file. 
+## Storage
 
+`DynamoDB` with a single table (`Guitars`) keyed by `id` (string). A single
+table is sufficient because the model has no relationships. If we later add a
+"market listings" aggregate from the scrapers, a separate table is the
+preferred next step rather than overloading this one.
 
-## Deploying
+## Authentication
 
-In order to run the `make deploy` command successfully, you will need to supply the `S3_BUCKET` and `STACK_NAME` variables. Example usage below:
+Requests must carry a bearer token. The expected value is stored in AWS
+Secrets Manager (secret name `guitars/bearer-token` by default) and cached in
+the Lambda for five minutes between fetches. A future iteration is expected to
+graduate to OAuth.
 
-`S3_BUCKET=YOUR_BUCKET_NAME STACK_NAME=YOUR_STACK_NAME make deploy`
+## Running locally with LocalStack
+
+Prerequisites: Go 1.22+, Docker (with Compose), the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html),
+and the AWS CLI.
+
+```bash
+# 1. Run the unit tests
+make test
+
+# 2. Boot LocalStack (DynamoDB + Secrets Manager)
+make localstack-up
+
+# 3. Create the Guitars table and the bearer-token secret
+make localstack-init
+
+# 4. Compile the lambda binary and start the API locally
+make api
+```
+
+The API is then reachable at <http://127.0.0.1:3000>. Example:
+
+```bash
+curl -H "Authorization: Bearer local-dev-token" http://127.0.0.1:3000/guitar
+```
+
+## Tests
+
+```bash
+make test
+```
+
+The suite covers every layer in isolation:
+
+- domain entity invariants and the `Money` value object,
+- application service use-cases through a fake repository,
+- the in-memory and DynamoDB repository implementations,
+- the bearer authenticator (with token caching and TTL refresh),
+- the API Gateway adapter (full CRUD lifecycle plus auth failure modes).
+
+## Deploying to AWS
+
+```bash
+S3_BUCKET=your-bucket STACK_NAME=guitars make deploy
+```
+
+The CloudFormation stack provisions the API Gateway, the Lambda, the DynamoDB
+table and the Secrets Manager secret. After deployment, rotate the bearer
+token by updating the secret value; the Lambda will pick up the new value
+within five minutes.
