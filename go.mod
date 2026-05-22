@@ -3,12 +3,14 @@ module github.com/wbits/guitars
 go 1.22
 
 require (
+	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go-v2 v1.32.7
 	github.com/aws/aws-sdk-go-v2/config v1.28.7
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.15.5
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.38.0
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.7
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 )
 

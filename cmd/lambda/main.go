@@ -10,7 +10,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -39,7 +38,6 @@ func main() {
 	}
 
 	tableName := envOrDefault("GUITARS_TABLE", "Guitars")
-	secretID := envOrDefault("BEARER_SECRET_ID", "guitars/bearer-token")
 
 	ddbOpts := []func(*dynamodb.Options){}
 	smOpts := []func(*secretsmanager.Options){}
@@ -55,14 +53,15 @@ func main() {
 	ddb := dynamodb.NewFromConfig(awsCfg, ddbOpts...)
 	repo := persistence.NewDynamoRepository(ddb, tableName)
 
-	sm := secretsmanager.NewFromConfig(awsCfg, smOpts...)
-	loader := &auth.SecretsManagerLoader{Client: sm, SecretID: secretID}
-	authn := auth.NewBearerAuthenticator(loader, 5*time.Minute)
+	authn, err := auth.BuildAuthenticator(ctx, awsCfg, smOpts)
+	if err != nil {
+		log.Fatalf("build authenticator: %v", err)
+	}
 
 	svc := application.NewService(repo, uuidGen{})
 	handler := httpapi.NewHandler(svc, authn)
 
-	log.Printf("guitars lambda starting (table=%s, secret=%s)", tableName, secretID)
+	log.Printf("guitars lambda starting (table=%s, auth=%s)", tableName, auth.AuthenticatorMode())
 	lambda.Start(handler.Handle)
 }
 

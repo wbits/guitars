@@ -4,25 +4,14 @@ Transform: AWS::Serverless-2016-10-31
 
 Description: >
   GuitarCollection API: a personal guitar collection exposed via API Gateway,
-  backed by a Go Lambda function and a DynamoDB table. The bearer token used
-  to authenticate requests is stored in AWS Secrets Manager.
+  backed by a Go Lambda function and a DynamoDB table. Requests are
+  authenticated with Cognito-issued JWT bearer tokens.
 
 Parameters:
   TableName:
     Type: String
     Default: Guitars
     Description: DynamoDB table name that holds the guitars.
-  BearerSecretName:
-    Type: String
-    Default: guitars/bearer-token
-    Description: Secrets Manager secret name containing the bearer token.
-  BearerTokenInitialValue:
-    Type: String
-    Default: change-me-please
-    NoEcho: true
-    Description: >
-      Initial bearer token value created in Secrets Manager. Rotate this after
-      deployment; the Lambda re-reads the secret every few minutes.
   ApiDomainName:
     Type: String
     Default: guitars.brouwers.club
@@ -43,10 +32,47 @@ Globals:
     Environment:
       Variables:
         GUITARS_TABLE: !Ref TableName
-        BEARER_SECRET_ID: !Ref BearerSecretName
         AWS_ENDPOINT_URL: ""
+        COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
+        COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
 
 Resources:
+
+  GuitarsUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: guitars
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+
+  GuitarsUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: guitars-webapp
+      UserPoolId: !Ref GuitarsUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      PreventUserExistenceErrors: ENABLED
+      SupportedIdentityProviders:
+        - COGNITO
+
+  GuitarsUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub "guitars-${AWS::AccountId}"
+      UserPoolId: !Ref GuitarsUserPool
 
   GuitarsTable:
     Type: AWS::DynamoDB::Table
@@ -60,13 +86,6 @@ Resources:
         - AttributeName: id
           KeyType: HASH
 
-  BearerSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Ref BearerSecretName
-      Description: Shared bearer token for the GuitarCollection API.
-      SecretString: !Ref BearerTokenInitialValue
-
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -75,11 +94,6 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
-        - Statement:
-            - Effect: Allow
-              Action:
-                - secretsmanager:GetSecretValue
-              Resource: !Ref BearerSecret
       Events:
         ListGuitars:
           Type: Api
@@ -176,9 +190,18 @@ Outputs:
   ApiDomainName:
     Description: Custom domain name attached to the API.
     Value: !Ref ApiDomainName
+  CognitoUserPoolId:
+    Description: Cognito user pool ID for the GuitarCollection API.
+    Value: !Ref GuitarsUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito app client ID for the guitars webapp.
+    Value: !Ref GuitarsUserPoolClient
+  CognitoIssuer:
+    Description: JWT issuer URL for Cognito access and ID tokens.
+    Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${GuitarsUserPool}"
+  CognitoHostedUIUrl:
+    Description: Cognito hosted UI base URL for sign-in.
+    Value: !Sub "https://${GuitarsUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
   TableName:
     Description: DynamoDB table used by the GuitarCollection API.
     Value: !Ref GuitarsTable
-  BearerSecretArn:
-    Description: ARN of the Secrets Manager secret holding the bearer token.
-    Value: !Ref BearerSecret

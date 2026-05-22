@@ -1,7 +1,7 @@
 // Package auth contains the authentication adapters used by the
-// interfaces/http layer. The current implementation is a simple shared bearer
-// token (kept in AWS Secrets Manager). A future version is expected to
-// graduate to OAuth.
+// interfaces/http layer. Production uses Cognito-issued JWT bearer tokens;
+// local development can still fall back to a shared bearer token in
+// Secrets Manager when Cognito env vars are not configured.
 package auth
 
 import (
