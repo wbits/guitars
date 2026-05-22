@@ -45,6 +45,18 @@ func toResponse(g *domain.Guitar) guitarResponse {
 	}
 }
 
+// presignUploadRequest is the JSON payload for POST /upload/presign.
+type presignUploadRequest struct {
+	ContentType string `json:"contentType"`
+}
+
+// presignUploadResponse is returned so the client can PUT directly to S3.
+type presignUploadResponse struct {
+	UploadURL string `json:"uploadUrl"`
+	PublicURL string `json:"publicUrl"`
+	Key       string `json:"key"`
+}
+
 // errorResponse is the JSON envelope used for non-2xx responses.
 type errorResponse struct {
 	Error string `json:"error"`

@@ -52,7 +52,7 @@ build: clean
 clean:
 	rm -rf $(BUILD_DIR) $(PACKAGED)
 
-## localstack-up: start LocalStack (DynamoDB + Secrets Manager) in docker
+## localstack-up: start LocalStack (DynamoDB + Secrets Manager + S3) in docker
 .PHONY: localstack-up
 localstack-up:
 	docker-compose up -d localstack

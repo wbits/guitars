@@ -9,6 +9,7 @@ REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 TABLE_NAME="${GUITARS_TABLE:-Guitars}"
 SECRET_NAME="${BEARER_SECRET_ID:-guitars/bearer-token}"
 BEARER_TOKEN="${BEARER_TOKEN:-local-dev-token}"
+IMAGES_BUCKET="${IMAGES_BUCKET:-guitars-local}"
 
 export AWS_ACCESS_KEY_ID=test
 export AWS_SECRET_ACCESS_KEY=test
@@ -34,7 +35,30 @@ else
     --secret-string "${BEARER_TOKEN}" >/dev/null
 fi
 
+echo "Creating S3 bucket ${IMAGES_BUCKET} ..."
+aws --endpoint-url="${ENDPOINT}" s3 mb "s3://${IMAGES_BUCKET}" \
+  >/dev/null 2>&1 || echo "  (bucket already exists)"
+
+CORS_CONFIG=$(cat <<EOF
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "PUT", "HEAD"],
+      "AllowedOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}
+EOF
+)
+aws --endpoint-url="${ENDPOINT}" s3api put-bucket-cors \
+  --bucket "${IMAGES_BUCKET}" \
+  --cors-configuration "${CORS_CONFIG}" >/dev/null
+
 echo "LocalStack init complete."
 echo "  table : ${TABLE_NAME}"
 echo "  secret: ${SECRET_NAME}"
 echo "  token : ${BEARER_TOKEN}"
+echo "  bucket: ${IMAGES_BUCKET}"

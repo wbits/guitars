@@ -32,7 +32,7 @@ func newTestHandler() *Handler {
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, authn)
+	return NewHandler(svc, authn, nil)
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -172,6 +172,14 @@ func TestHandler_FullCRUDLifecycle(t *testing.T) {
 	resp, _ = h.Handle(ctx, reqWithAuth("DELETE", "/guitar/"+created.ID, ""))
 	if resp.StatusCode != 404 {
 		t.Errorf("second delete: want 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandler_PresignUpload_Returns503WhenNotConfigured(t *testing.T) {
+	h := newTestHandler()
+	resp, _ := h.Handle(context.Background(), reqWithAuth("POST", "/upload/presign", `{"contentType":"image/jpeg"}`))
+	if resp.StatusCode != 503 {
+		t.Errorf("want 503, got %d (%s)", resp.StatusCode, resp.Body)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
+	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/storage"
 )
 
 // Handler routes API Gateway proxy requests to the GuitarCollection
@@ -25,14 +26,16 @@ import (
 //
 // It deliberately holds no business rules of its own.
 type Handler struct {
-	svc  *application.Service
-	auth auth.Authenticator
+	svc       *application.Service
+	auth      auth.Authenticator
+	presigner *storage.Presigner
 }
 
 // NewHandler constructs a Handler wired to the supplied service and
-// authenticator. Both arguments are required.
-func NewHandler(svc *application.Service, a auth.Authenticator) *Handler {
-	return &Handler{svc: svc, auth: a}
+// authenticator. Both arguments are required. presigner may be nil when image
+// uploads are not configured.
+func NewHandler(svc *application.Service, a auth.Authenticator, presigner *storage.Presigner) *Handler {
+	return &Handler{svc: svc, auth: a, presigner: presigner}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
@@ -58,6 +61,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return h.list(ctx)
 	case path == "/guitar" && method == "POST":
 		return h.create(ctx, req.Body)
+	case path == "/upload/presign" && method == "POST":
+		return h.presignUpload(ctx, req.Body)
 	default:
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
@@ -128,6 +133,31 @@ func (h *Handler) delete(ctx context.Context, id string) (events.APIGatewayProxy
 		return errorToResponse(err)
 	}
 	return events.APIGatewayProxyResponse{StatusCode: 204, Headers: responseHeaders(nil)}, nil
+}
+
+func (h *Handler) presignUpload(ctx context.Context, body string) (events.APIGatewayProxyResponse, error) {
+	if h.presigner == nil {
+		return jsonResponse(503, errorResponse{Error: "image uploads are not configured"})
+	}
+
+	var req presignUploadRequest
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
+	}
+	if strings.TrimSpace(req.ContentType) == "" {
+		return jsonResponse(400, errorResponse{Error: "contentType is required"})
+	}
+
+	result, err := h.presigner.PresignPut(ctx, req.ContentType)
+	if err != nil {
+		return jsonResponse(400, errorResponse{Error: err.Error()})
+	}
+
+	return jsonResponse(200, presignUploadResponse{
+		UploadURL: result.UploadURL,
+		PublicURL: result.PublicURL,
+		Key:       result.Key,
+	})
 }
 
 // --- helpers ---------------------------------------------------------------

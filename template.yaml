@@ -20,6 +20,16 @@ Parameters:
     Type: String
     Default: Z0268167UNCHL7FC13KG
     Description: Route53 hosted zone ID for the API custom domain.
+  ImagesBucketName:
+    Type: String
+    Default: ""
+    Description: >
+      S3 bucket for guitar pictures (typically the guitars-webapp static site
+      bucket). Leave empty to disable presigned uploads.
+  ImagesCdnBaseUrl:
+    Type: String
+    Default: https://guitarcollection.brouwers.club
+    Description: Public CDN origin for uploaded guitar pictures.
 
 Globals:
   Api:
@@ -35,6 +45,11 @@ Globals:
         AWS_ENDPOINT_URL: ""
         COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
+        IMAGES_BUCKET: !Ref ImagesBucketName
+        IMAGES_CDN_BASE_URL: !Ref ImagesCdnBaseUrl
+
+Conditions:
+  HasImagesBucket: !Not [!Equals [!Ref ImagesBucketName, ""]]
 
 Resources:
 
@@ -94,6 +109,14 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
+        - !If
+          - HasImagesBucket
+          - Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${ImagesBucketName}/images/guitars/*'
+          - !Ref AWS::NoValue
       Events:
         ListGuitars:
           Type: Api
@@ -129,6 +152,16 @@ Resources:
           Type: Api
           Properties:
             Path: /guitar/{id}
+            Method: options
+        PresignUpload:
+          Type: Api
+          Properties:
+            Path: /upload/presign
+            Method: post
+        OptionsPresignUpload:
+          Type: Api
+          Properties:
+            Path: /upload/presign
             Method: options
 
   ApiCertificate:
