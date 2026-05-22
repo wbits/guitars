@@ -2,6 +2,12 @@
 name: Market crawl
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'cmd/crawler/**'
+      - 'internal/marketcrawler/**'
+      - '.github/workflows/crawl.yml'
   schedule:
     # Every Sunday at 06:00 UTC.
     - cron: '0 6 * * 0'
@@ -43,6 +49,18 @@ jobs:
 
       - name: Test crawler packages
         run: go test ./internal/marketcrawler/...
+
+      - name: Validate crawl configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${GUITARS_API_URL:-}" ]; then
+            echo "::error::Set the GUITARS_API_URL repository variable to your production API base URL."
+            exit 1
+          fi
+          if [ -z "${COGNITO_CLIENT_ID:-}" ]; then
+            echo "::error::Set the COGNITO_CLIENT_ID repository variable."
+            exit 1
+          fi
 
       - name: Run market crawler
         run: |
