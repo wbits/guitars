@@ -113,6 +113,31 @@ The suite covers every layer in isolation:
 - the bearer authenticator (with token caching and TTL refresh),
 - the API Gateway adapter (full CRUD lifecycle plus auth failure modes).
 
+## Continuous integration
+
+Every push and pull request to `master` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+| Step | Tool | Purpose |
+| ---- | ---- | ------- |
+| Static analysis | [golangci-lint](https://golangci-lint.run/) | Bugs, style, and common Go issues (free, no signup) |
+| Unit tests | `go test` | Full test suite with race detector |
+| Coverage gate | [octocov](https://github.com/k1LoW/octocov) | **≥ 80% coverage on new/changed code** |
+
+This is a free SonarCloud-style setup: lint + test coverage with a diff
+coverage gate, without a paid SonarCloud subscription. octocov stores the
+previous report as a GitHub Actions artifact and compares your branch against
+it. Pull requests get a summary comment with coverage on changed lines.
+
+Run the same checks locally:
+
+```bash
+make test-cover   # writes coverage.out (cmd/ entrypoints excluded)
+make lint         # requires golangci-lint on PATH
+```
+
+The first CI run on a branch establishes a baseline; subsequent pushes enforce
+the 80% diff-coverage threshold on lines you change.
+
 ## Deploying to AWS
 
 ```bash

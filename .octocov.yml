@@ -1,0 +1,19 @@
+# octocov: free coverage reporting with a diff (new code) gate.
+# Docs: https://github.com/k1LoW/octocov
+coverage:
+  if: true
+  diff:
+    acceptable: 80%
+    datastores:
+      - artifact://${GITHUB_REPOSITORY}
+
+report:
+  if: is default branch
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+
+comment:
+  if: is pull request
+
+summary:
+  if: is pull request

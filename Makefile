@@ -26,6 +26,18 @@ help:
 test:
 	GOTOOLCHAIN=local go test ./...
 
+## test-cover: run tests with coverage profile (excludes cmd/ entrypoints)
+.PHONY: test-cover
+test-cover:
+	@PKGS=$$(GOTOOLCHAIN=local go list ./... | grep -v '/cmd/'); \
+	GOTOOLCHAIN=local go test -coverprofile=coverage.out $$PKGS; \
+	GOTOOLCHAIN=local go tool cover -func=coverage.out | tail -1
+
+## lint: run golangci-lint (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)
+.PHONY: lint
+lint:
+	golangci-lint run ./...
+
 ## vet: static checks
 .PHONY: vet
 vet:

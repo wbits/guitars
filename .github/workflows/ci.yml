@@ -1,0 +1,54 @@
+# Static analysis + unit tests with coverage.
+# golangci-lint: bugs, style, and common Go issues (free, runs in CI).
+# octocov: coverage report + 80% minimum on new/changed code (free SonarCloud-like gate).
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history is required so octocov can diff against the base branch.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.1.6
+          args: ./...
+
+      - name: Unit tests with coverage
+        run: |
+          set -euo pipefail
+          PKGS=$(go list ./... | grep -v '/cmd/')
+          go test -race -covermode=atomic -coverprofile=coverage.out ${PKGS}
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Coverage gate (80% on new/changed code)
+        uses: k1LoW/octocov-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

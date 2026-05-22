@@ -1,0 +1,22 @@
+# golangci-lint v2 configuration.
+# See https://golangci-lint.run/docs/linters/
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  # Start from the curated "standard" set; add targeted linters as needed.
+  default: standard
+  enable:
+    - bodyclose
+    - misspell
+    - noctx
+
+issues:
+  exclude-rules:
+    # Main packages are thin wiring; coverage is enforced on internal/ instead.
+    - path: cmd/
+      linters:
+        - errcheck
