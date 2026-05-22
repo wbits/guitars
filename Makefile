@@ -86,9 +86,9 @@ api: build
 ## package: produce a CloudFormation package (requires S3_BUCKET)
 .PHONY: package
 package: test build
-	sam package --template-file $(TEMPLATE) --s3-bucket $(S3_BUCKET) --output-template-file $(PACKAGED)
+	$(SAM) package --template-file $(TEMPLATE) --s3-bucket $(S3_BUCKET) --output-template-file $(PACKAGED)
 
 ## deploy: deploy to AWS (requires S3_BUCKET and STACK_NAME)
 .PHONY: deploy
 deploy: package
-	sam deploy --stack-name $(STACK_NAME) --template-file $(PACKAGED) --capabilities CAPABILITY_IAM
+	$(SAM) deploy --stack-name $(STACK_NAME) --template-file $(PACKAGED) --capabilities CAPABILITY_IAM --no-confirm-changeset --region $(AWS_REGION)

@@ -23,8 +23,18 @@ Parameters:
     Description: >
       Initial bearer token value created in Secrets Manager. Rotate this after
       deployment; the Lambda re-reads the secret every few minutes.
+  ApiDomainName:
+    Type: String
+    Default: guitars.brouwers.club
+    Description: Custom domain name for the GuitarCollection API.
+  HostedZoneId:
+    Type: String
+    Default: Z0268167UNCHL7FC13KG
+    Description: Route53 hosted zone ID for the API custom domain.
 
 Globals:
+  Api:
+    EndpointConfiguration: REGIONAL
   Function:
     Runtime: provided.al2
     Architectures: [x86_64]
@@ -35,7 +45,6 @@ Globals:
         GUITARS_TABLE: !Ref TableName
         BEARER_SECRET_ID: !Ref BearerSecretName
         AWS_ENDPOINT_URL: ""
-        AWS_REGION: !Ref AWS::Region
 
 Resources:
 
@@ -108,10 +117,65 @@ Resources:
             Path: /guitar/{id}
             Method: options
 
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref ApiDomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref ApiDomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  ApiCustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: !Ref ApiDomainName
+      RegionalCertificateArn: !Ref ApiCertificate
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      SecurityPolicy: TLS_1_2
+
+  ApiBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    DependsOn:
+      - ApiCustomDomain
+      - ServerlessRestApiProdStage
+    Properties:
+      DomainName: !Ref ApiDomainName
+      RestApiId: !Ref ServerlessRestApi
+      Stage: Prod
+
+  ApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref ApiDomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiCustomDomain.RegionalDomainName
+        HostedZoneId: !GetAtt ApiCustomDomain.RegionalHostedZoneId
+
+  ApiDnsRecordIPv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref ApiDomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt ApiCustomDomain.RegionalDomainName
+        HostedZoneId: !GetAtt ApiCustomDomain.RegionalHostedZoneId
+
 Outputs:
   Endpoint:
     Description: Invoke URL for the GuitarCollection API.
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  CustomDomainEndpoint:
+    Description: Custom domain URL for the GuitarCollection API.
+    Value: !Sub "https://${ApiDomainName}/"
+  ApiDomainName:
+    Description: Custom domain name attached to the API.
+    Value: !Ref ApiDomainName
   TableName:
     Description: DynamoDB table used by the GuitarCollection API.
     Value: !Ref GuitarsTable
