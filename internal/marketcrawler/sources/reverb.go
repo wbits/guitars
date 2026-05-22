@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -91,10 +90,7 @@ func (r *Reverb) fetch(ctx context.Context, query string, soldOnly bool) ([]mark
 	now := time.Now().UTC()
 	out := make([]marketcrawler.Finding, 0, len(payload.Listings))
 	for _, listing := range payload.Listings {
-		action := "for_sale"
-		if soldOnly || strings.EqualFold(listing.State, "sold") {
-			action = "sold"
-		}
+		action := listing.action(soldOnly)
 		amount, currency, ok := listing.priceMinorUnits()
 		if !ok {
 			continue
@@ -104,7 +100,7 @@ func (r *Reverb) fetch(ctx context.Context, query string, soldOnly bool) ([]mark
 			Action:            action,
 			PriceAmount:       amount,
 			PriceCurrency:     currency,
-			ListingURL:        listing.WebURL(),
+			ListingURL:        listing.webURL(),
 			ListingTitle:      strings.TrimSpace(listing.Title),
 			ExternalListingID: strconv.FormatInt(listing.ID, 10),
 			ObservedAt:        now,
@@ -120,34 +116,46 @@ type reverbListingsResponse struct {
 type reverbListing struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
-	State string `json:"state"`
+	State struct {
+		Slug string `json:"slug"`
+	} `json:"state"`
 	Links struct {
 		Web struct {
 			Href string `json:"href"`
 		} `json:"web"`
 	} `json:"_links"`
 	Price *struct {
-		Amount   json.Number `json:"amount"`
-		Currency string      `json:"currency"`
+		AmountCents int64       `json:"amount_cents"`
+		Amount      json.Number `json:"amount"`
+		Currency    string      `json:"currency"`
 	} `json:"price"`
 }
 
-func (l reverbListing) WebURL() string {
+func (l reverbListing) webURL() string {
 	return strings.TrimSpace(l.Links.Web.Href)
+}
+
+func (l reverbListing) action(soldOnly bool) string {
+	if soldOnly || strings.EqualFold(l.State.Slug, "sold") {
+		return "sold"
+	}
+	return "for_sale"
 }
 
 func (l reverbListing) priceMinorUnits() (int64, string, bool) {
 	if l.Price == nil {
 		return 0, "", false
 	}
-	amount, err := l.Price.Amount.Float64()
-	if err != nil || amount <= 0 {
-		return 0, "", false
-	}
 	currency := strings.ToUpper(strings.TrimSpace(l.Price.Currency))
 	if currency == "" {
 		currency = "USD"
 	}
-	minor := int64(math.Round(amount * 100))
-	return minor, currency, true
+	if l.Price.AmountCents > 0 {
+		return l.Price.AmountCents, currency, true
+	}
+	amount, err := l.Price.Amount.Float64()
+	if err != nil || amount <= 0 {
+		return 0, "", false
+	}
+	return int64(amount * 100), currency, true
 }
