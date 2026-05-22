@@ -1,5 +1,5 @@
 # Cognito crawler user: info@wbits.net (COGNITO_CRAWLER_USERNAME secret).
-# Password is loaded from AWS Secrets Manager (guitars/crawler-cognito-password).
+# Password: COGNITO_CRAWLER_PASSWORD must match the Cognito user (see README).
 name: Market crawl
 
 on:
@@ -34,7 +34,7 @@ jobs:
       COGNITO_REGION: ${{ vars.COGNITO_REGION || 'eu-central-1' }}
       COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
       COGNITO_USERNAME: ${{ secrets.COGNITO_CRAWLER_USERNAME }}
-      COGNITO_PASSWORD_SECRET_ID: guitars/crawler-cognito-password
+      COGNITO_PASSWORD: ${{ secrets.COGNITO_CRAWLER_PASSWORD }}
       EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
       EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
     steps:
@@ -65,26 +65,19 @@ jobs:
             echo "::error::Set the COGNITO_CRAWLER_USERNAME repository secret (e.g. info@wbits.net)."
             exit 1
           fi
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.COGNITO_REGION }}
+          if [ -z "${COGNITO_PASSWORD:-}" ]; then
+            echo "::error::Set the COGNITO_CRAWLER_PASSWORD repository secret to match the Cognito user password."
+            exit 1
+          fi
 
       - name: Verify Cognito sign-in
         run: |
           set -euo pipefail
-          PASS=$(aws secretsmanager get-secret-value \
-            --secret-id "${COGNITO_PASSWORD_SECRET_ID}" \
-            --query SecretString --output text)
-          echo "::add-mask::$PASS"
           aws cognito-idp initiate-auth \
             --region "${COGNITO_REGION}" \
             --client-id "${COGNITO_CLIENT_ID}" \
             --auth-flow USER_PASSWORD_AUTH \
-            --auth-parameters "USERNAME=${COGNITO_USERNAME},PASSWORD=${PASS}" \
+            --auth-parameters "USERNAME=${COGNITO_USERNAME},PASSWORD=${COGNITO_PASSWORD}" \
             --query 'AuthenticationResult.TokenType' --output text
 
       - name: Run market crawler

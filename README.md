@@ -157,28 +157,22 @@ Configure in the GitHub repo:
 | Variable | `COGNITO_CLIENT_ID` | Cognito app client ID |
 | Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
-| Secret | `AWS_ACCESS_KEY_ID` | IAM user with `secretsmanager:GetSecretValue` on `guitars/crawler-cognito-password` |
-| Secret | `AWS_SECRET_ACCESS_KEY` | Matching secret key |
+| Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
 
-The crawler password lives in **AWS Secrets Manager** as
-`guitars/crawler-cognito-password` (single source of truth with Cognito). The
-workflow reads it at runtime — you no longer need `COGNITO_CRAWLER_PASSWORD` in
-GitHub.
-
-To rotate the password:
+To read the current password from AWS Secrets Manager (if you use it as the
+source of truth):
 
 ```bash
-NEW_PW='your-new-password'
-aws cognito-idp admin-set-user-password \
-  --user-pool-id eu-central-1_J8DZBZWRu \
-  --username info@wbits.net \
-  --password "$NEW_PW" --permanent --region eu-central-1
-aws secretsmanager put-secret-value \
+aws secretsmanager get-secret-value \
   --secret-id guitars/crawler-cognito-password \
-  --secret-string "$NEW_PW" --region eu-central-1
+  --query SecretString --output text --region eu-central-1
 ```
 
-Local runs can use the same secret:
+Copy that value into the `COGNITO_CRAWLER_PASSWORD` GitHub secret. When you
+rotate the password, update **both** Cognito and the GitHub secret (and Secrets
+Manager if you use it locally).
+
+Local runs can load the password from Secrets Manager instead:
 
 ```bash
 COGNITO_PASSWORD_SECRET_ID=guitars/crawler-cognito-password make crawl
