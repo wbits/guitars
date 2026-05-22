@@ -138,6 +138,31 @@ make lint         # requires golangci-lint on PATH
 The first CI run on a branch establishes a baseline; subsequent pushes enforce
 the 80% diff-coverage threshold on lines you change.
 
+## Market crawler (GitHub Actions)
+
+The [Market crawl](.github/workflows/crawl.yml) workflow searches Reverb (and
+optionally eBay/Marktplaats) and uploads price observations to the API.
+
+| Trigger | When |
+| ------- | ---- |
+| Schedule | Every Sunday 06:00 UTC |
+| Manual | Actions → Market crawl → Run workflow |
+| Push | Changes under `cmd/crawler/` only |
+
+Configure in the GitHub repo:
+
+| Kind | Name | Value |
+| ---- | ---- | ----- |
+| Variable | `GUITARS_API_URL` | `https://guitars.brouwers.club` |
+| Variable | `COGNITO_CLIENT_ID` | Cognito app client ID |
+| Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
+| Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
+| Secret | `COGNITO_CRAWLER_PASSWORD` | Password for that Cognito user |
+
+**Important:** the password in `COGNITO_CRAWLER_PASSWORD` must match the Cognito
+user exactly. If you reset the password in AWS, update the GitHub secret too.
+A mismatch produces `NotAuthorizedException: Incorrect username or password`.
+
 ## Deploying to AWS
 
 ```bash

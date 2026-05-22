@@ -6,7 +6,6 @@ on:
     branches: [master]
     paths:
       - 'cmd/crawler/**'
-      - 'internal/marketcrawler/**'
       - '.github/workflows/crawl.yml'
   schedule:
     # Every Sunday at 06:00 UTC.
@@ -59,6 +58,10 @@ jobs:
           fi
           if [ -z "${COGNITO_CLIENT_ID:-}" ]; then
             echo "::error::Set the COGNITO_CLIENT_ID repository variable."
+            exit 1
+          fi
+          if [ -z "${COGNITO_USERNAME:-}" ] || [ -z "${COGNITO_PASSWORD:-}" ]; then
+            echo "::error::Set COGNITO_CRAWLER_USERNAME and COGNITO_CRAWLER_PASSWORD repository secrets."
             exit 1
           fi
 
