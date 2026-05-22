@@ -65,12 +65,7 @@ func main() {
 		found := false
 		for _, g := range guitars {
 			if g.ID == *guitarID {
-				target = marketcrawler.GuitarSummary{
-					ID:        g.ID,
-					Brand:     g.Brand,
-					TypeName:  g.TypeName,
-					BuildYear: g.BuildYear,
-				}
+				target = marketcrawler.GuitarSummary(g)
 				found = true
 				break
 			}

@@ -20,12 +20,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 		return err
 	}
 	for _, g := range guitars {
-		if err := r.RunGuitar(ctx, GuitarSummary{
-			ID:        g.ID,
-			Brand:     g.Brand,
-			TypeName:  g.TypeName,
-			BuildYear: g.BuildYear,
-		}); err != nil {
+		if err := r.RunGuitar(ctx, GuitarSummary(g)); err != nil {
 			return fmt.Errorf("crawl guitar %s: %w", g.ID, err)
 		}
 	}

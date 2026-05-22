@@ -253,7 +253,7 @@ func TestHandler_MarketLog_CreateAndList(t *testing.T) {
 		"priceAmount":150000,
 		"priceCurrency":"EUR",
 		"listingUrl":"https://reverb.com/item/1",
-		"listingTitle":"Fender Strat"
+		"listingTitle":"Fender Stratocaster"
 	}]`
 	postResp, _ := h.Handle(context.Background(), reqWithAuth("POST", "/guitar/"+created.ID+"/market-log", logBody))
 	if postResp.StatusCode != 201 {

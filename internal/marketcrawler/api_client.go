@@ -48,7 +48,7 @@ func (c *APIClient) ListGuitars(ctx context.Context) ([]GuitarFromAPI, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, apiError(resp)
 	}
@@ -101,7 +101,7 @@ func (c *APIClient) UploadMarketLogs(ctx context.Context, guitarID string, findi
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
 		return apiError(resp)
 	}

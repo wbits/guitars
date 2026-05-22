@@ -77,7 +77,7 @@ func (e *Ebay) Search(ctx context.Context, guitar marketcrawler.GuitarSummary) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return nil, fmt.Errorf("ebay api status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -135,7 +135,7 @@ func (e *Ebay) accessToken(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return "", fmt.Errorf("ebay token status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
