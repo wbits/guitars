@@ -1,0 +1,54 @@
+# Cognito crawler user: info@wbits.net (COGNITO_CRAWLER_USERNAME secret).
+name: Market crawl
+
+on:
+  schedule:
+    # Every Sunday at 06:00 UTC.
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      guitar_id:
+        description: Optional single guitar id to crawl
+        required: false
+        type: string
+
+concurrency:
+  group: market-crawl
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GUITARS_API_URL: ${{ vars.GUITARS_API_URL }}
+      COGNITO_REGION: ${{ vars.COGNITO_REGION || 'eu-central-1' }}
+      COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
+      COGNITO_USERNAME: ${{ secrets.COGNITO_CRAWLER_USERNAME }}
+      COGNITO_PASSWORD: ${{ secrets.COGNITO_CRAWLER_PASSWORD }}
+      EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+      EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Test crawler packages
+        run: go test ./internal/marketcrawler/...
+
+      - name: Run market crawler
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ -n "${{ github.event.inputs.guitar_id }}" ]; then
+            ARGS+=("-guitar-id=${{ github.event.inputs.guitar_id }}")
+          fi
+          go run ./cmd/crawler "${ARGS[@]}"

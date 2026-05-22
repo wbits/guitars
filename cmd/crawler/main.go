@@ -22,11 +22,19 @@ func main() {
 	skipMarktplaats := flag.Bool("skip-marktplaats", false, "Skip Marktplaats source")
 	flag.Parse()
 
+	ctx := context.Background()
 	logger := log.New(os.Stdout, "crawler: ", log.LstdFlags|log.Lmsgprefix)
-	client := marketcrawler.NewAPIClient(*apiURL, *token)
-	if client.Token == "" {
-		logger.Fatal("missing API token: pass -token or set GUITARS_API_TOKEN")
+
+	apiToken := strings.TrimSpace(*token)
+	if apiToken == "" {
+		var err error
+		apiToken, err = marketcrawler.ResolveAPIToken(ctx)
+		if err != nil {
+			logger.Fatalf("resolve api token: %v", err)
+		}
 	}
+
+	client := marketcrawler.NewAPIClient(*apiURL, apiToken)
 
 	var srcs []marketcrawler.Source
 	if !*skipReverb {
@@ -48,7 +56,6 @@ func main() {
 		Logger:  logger,
 	}
 
-	ctx := context.Background()
 	if strings.TrimSpace(*guitarID) != "" {
 		guitars, err := client.ListGuitars(ctx)
 		if err != nil {
