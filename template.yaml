@@ -1,23 +1,108 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-
 Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  GuitarCollection API: a personal guitar collection exposed via API Gateway,
+  backed by a Go Lambda function and a DynamoDB table. The bearer token used
+  to authenticate requests is stored in AWS Secrets Manager.
+
+Parameters:
+  TableName:
+    Type: String
+    Default: Guitars
+    Description: DynamoDB table name that holds the guitars.
+  BearerSecretName:
+    Type: String
+    Default: guitars/bearer-token
+    Description: Secrets Manager secret name containing the bearer token.
+  BearerTokenInitialValue:
+    Type: String
+    Default: change-me-please
+    NoEcho: true
+    Description: >
+      Initial bearer token value created in Secrets Manager. Rotate this after
+      deployment; the Lambda re-reads the secret every few minutes.
+
+Globals:
+  Function:
+    Runtime: provided.al2
+    Architectures: [x86_64]
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        GUITARS_TABLE: !Ref TableName
+        BEARER_SECRET_ID: !Ref BearerSecretName
 
 Resources:
 
-  goFunction:
+  GuitarsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  BearerSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Ref BearerSecretName
+      Description: Shared bearer token for the GuitarCollection API.
+      SecretString: !Ref BearerTokenInitialValue
+
+  GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: main
-      Runtime: go1.x
+      Handler: bootstrap
+      CodeUri: ./build/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref BearerSecret
       Events:
-        GetEvent:
+        ListGuitars:
           Type: Api
           Properties:
-            Path: /
+            Path: /guitar
             Method: get
+        CreateGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar
+            Method: post
+        GetGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}
+            Method: get
+        UpdateGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}
+            Method: put
+        DeleteGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}
+            Method: delete
 
 Outputs:
-
   Endpoint:
-    Value:  !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Description: Invoke URL for the GuitarCollection API.
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  TableName:
+    Description: DynamoDB table used by the GuitarCollection API.
+    Value: !Ref GuitarsTable
+  BearerSecretArn:
+    Description: ARN of the Secrets Manager secret holding the bearer token.
+    Value: !Ref BearerSecret
