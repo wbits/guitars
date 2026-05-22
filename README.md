@@ -157,11 +157,32 @@ Configure in the GitHub repo:
 | Variable | `COGNITO_CLIENT_ID` | Cognito app client ID |
 | Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
-| Secret | `COGNITO_CRAWLER_PASSWORD` | Password for that Cognito user |
+| Secret | `AWS_ACCESS_KEY_ID` | IAM user with `secretsmanager:GetSecretValue` on `guitars/crawler-cognito-password` |
+| Secret | `AWS_SECRET_ACCESS_KEY` | Matching secret key |
 
-**Important:** the password in `COGNITO_CRAWLER_PASSWORD` must match the Cognito
-user exactly. If you reset the password in AWS, update the GitHub secret too.
-A mismatch produces `NotAuthorizedException: Incorrect username or password`.
+The crawler password lives in **AWS Secrets Manager** as
+`guitars/crawler-cognito-password` (single source of truth with Cognito). The
+workflow reads it at runtime — you no longer need `COGNITO_CRAWLER_PASSWORD` in
+GitHub.
+
+To rotate the password:
+
+```bash
+NEW_PW='your-new-password'
+aws cognito-idp admin-set-user-password \
+  --user-pool-id eu-central-1_J8DZBZWRu \
+  --username info@wbits.net \
+  --password "$NEW_PW" --permanent --region eu-central-1
+aws secretsmanager put-secret-value \
+  --secret-id guitars/crawler-cognito-password \
+  --secret-string "$NEW_PW" --region eu-central-1
+```
+
+Local runs can use the same secret:
+
+```bash
+COGNITO_PASSWORD_SECRET_ID=guitars/crawler-cognito-password make crawl
+```
 
 ## Deploying to AWS
 

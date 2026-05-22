@@ -30,10 +30,13 @@ func TokenFromCognito(ctx context.Context) (string, error) {
 	region := strings.TrimSpace(os.Getenv("COGNITO_REGION"))
 	clientID := strings.TrimSpace(os.Getenv("COGNITO_CLIENT_ID"))
 	username := strings.TrimSpace(os.Getenv("COGNITO_USERNAME"))
-	password := os.Getenv("COGNITO_PASSWORD")
+	password, err := resolveCognitoPassword(ctx)
+	if err != nil {
+		return "", err
+	}
 
 	if region == "" || clientID == "" || username == "" || password == "" {
-		return "", fmt.Errorf("cognito sign-in requires COGNITO_REGION, COGNITO_CLIENT_ID, COGNITO_USERNAME, and COGNITO_PASSWORD")
+		return "", fmt.Errorf("cognito sign-in requires COGNITO_REGION, COGNITO_CLIENT_ID, COGNITO_USERNAME, and COGNITO_PASSWORD (or COGNITO_PASSWORD_SECRET_ID)")
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx,
