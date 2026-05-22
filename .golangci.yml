@@ -7,16 +7,14 @@ run:
   tests: true
 
 linters:
-  # Start from the curated "standard" set; add targeted linters as needed.
   default: standard
   enable:
     - bodyclose
     - misspell
     - noctx
-
-issues:
-  exclude-rules:
-    # Main packages are thin wiring; coverage is enforced on internal/ instead.
-    - path: cmd/
-      linters:
-        - errcheck
+  exclusions:
+    rules:
+      # Main packages are thin wiring; coverage is enforced on internal/ instead.
+      - path: cmd/
+        linters:
+          - errcheck
