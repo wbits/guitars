@@ -194,3 +194,31 @@ func TestHandler_AcceptsLowercaseAuthorizationHeader(t *testing.T) {
 		t.Errorf("want 200, got %d (%s)", resp.StatusCode, resp.Body)
 	}
 }
+
+func TestHandler_OptionsPreflight_Returns204WithoutAuth(t *testing.T) {
+	h := newTestHandler()
+	resp, err := h.Handle(context.Background(), events.APIGatewayProxyRequest{
+		HTTPMethod: "OPTIONS",
+		Path:       "/guitar",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 204 {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if resp.Headers["Access-Control-Allow-Origin"] != "*" {
+		t.Errorf("Allow-Origin: got %q, want *", resp.Headers["Access-Control-Allow-Origin"])
+	}
+	if !strings.Contains(resp.Headers["Access-Control-Allow-Headers"], "Authorization") {
+		t.Errorf("Allow-Headers missing Authorization: %q", resp.Headers["Access-Control-Allow-Headers"])
+	}
+}
+
+func TestHandler_Get_IncludesCORSHeaders(t *testing.T) {
+	h := newTestHandler()
+	resp, _ := h.Handle(context.Background(), reqWithAuth("GET", "/guitar", ""))
+	if resp.Headers["Access-Control-Allow-Origin"] != "*" {
+		t.Errorf("Allow-Origin: got %q, want *", resp.Headers["Access-Control-Allow-Origin"])
+	}
+}

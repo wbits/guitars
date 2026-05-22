@@ -97,6 +97,16 @@ Resources:
           Properties:
             Path: /guitar/{id}
             Method: delete
+        OptionsGuitarCollection:
+          Type: Api
+          Properties:
+            Path: /guitar
+            Method: options
+        OptionsGuitarItem:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}
+            Method: options
 
 Outputs:
   Endpoint:

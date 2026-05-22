@@ -39,6 +39,10 @@ var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
 
 // Handle is the entrypoint suitable for lambda.Start.
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	if strings.EqualFold(req.HTTPMethod, "OPTIONS") {
+		return corsPreflightResponse(), nil
+	}
+
 	if err := h.auth.Authenticate(ctx, pickHeader(req.Headers, "Authorization")); err != nil {
 		if errors.Is(err, auth.ErrUnauthorized) {
 			return jsonResponse(401, errorResponse{Error: "unauthorized"})
@@ -123,7 +127,7 @@ func (h *Handler) delete(ctx context.Context, id string) (events.APIGatewayProxy
 	if err := h.svc.DeleteGuitar(ctx, id); err != nil {
 		return errorToResponse(err)
 	}
-	return events.APIGatewayProxyResponse{StatusCode: 204, Headers: jsonHeaders()}, nil
+	return events.APIGatewayProxyResponse{StatusCode: 204, Headers: responseHeaders(nil)}, nil
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -157,19 +161,19 @@ func jsonResponse(status int, body interface{}) (events.APIGatewayProxyResponse,
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Headers:    jsonHeaders(),
+			Headers:    responseHeaders(map[string]string{"Content-Type": "application/json"}),
 			Body:       `{"error":"failed to encode response"}`,
 		}, nil
 	}
 	return events.APIGatewayProxyResponse{
 		StatusCode: status,
-		Headers:    jsonHeaders(),
+		Headers:    responseHeaders(map[string]string{"Content-Type": "application/json"}),
 		Body:       string(payload),
 	}, nil
 }
 
-func jsonHeaders() map[string]string {
-	return map[string]string{"Content-Type": "application/json"}
+func responseHeaders(extra map[string]string) map[string]string {
+	return mergeHeaders(extra)
 }
 
 func normalisePath(p string) string {
