@@ -1,0 +1,102 @@
+package httpapi
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-lambda-go/events"
+
+	"github.com/wbits/guitars/internal/guitarcollection/application"
+)
+
+func (h *Handler) listMarketLogs(ctx context.Context, guitarID string) (events.APIGatewayProxyResponse, error) {
+	logs, err := h.marketLogs.ListMarketLogs(ctx, guitarID)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	out := make([]marketLogResponse, 0, len(logs))
+	for _, log := range logs {
+		out = append(out, toMarketLogResponse(log))
+	}
+	return jsonResponse(200, out)
+}
+
+func (h *Handler) createMarketLogs(ctx context.Context, guitarID, body string) (events.APIGatewayProxyResponse, error) {
+	reqs, err := decodeMarketLogRequests(body)
+	if err != nil {
+		return jsonResponse(400, errorResponse{Error: err.Error()})
+	}
+	if len(reqs) == 0 {
+		return jsonResponse(400, errorResponse{Error: "at least one market log entry is required"})
+	}
+	inputs := make([]application.MarketLogInput, 0, len(reqs))
+	for _, req := range reqs {
+		input, err := marketLogRequestToInput(req)
+		if err != nil {
+			return jsonResponse(400, errorResponse{Error: err.Error()})
+		}
+		inputs = append(inputs, input)
+	}
+	logs, err := h.marketLogs.AddMarketLogs(ctx, guitarID, inputs)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	out := make([]marketLogResponse, 0, len(logs))
+	for _, log := range logs {
+		out = append(out, toMarketLogResponse(log))
+	}
+	if len(out) == 1 {
+		return jsonResponse(201, out[0])
+	}
+	return jsonResponse(201, out)
+}
+
+func decodeMarketLogRequests(body string) ([]marketLogRequest, error) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return nil, errInvalidJSON
+	}
+	if body[0] == '[' {
+		var batch []marketLogRequest
+		if err := json.Unmarshal([]byte(body), &batch); err != nil {
+			return nil, errInvalidJSON
+		}
+		return batch, nil
+	}
+	var single marketLogRequest
+	if err := json.Unmarshal([]byte(body), &single); err != nil {
+		return nil, errInvalidJSON
+	}
+	return []marketLogRequest{single}, nil
+}
+
+var errInvalidJSON = errorString("invalid JSON body")
+
+type errorString string
+
+func (e errorString) Error() string { return string(e) }
+
+func marketLogRequestToInput(req marketLogRequest) (application.MarketLogInput, error) {
+	var observedAt time.Time
+	if strings.TrimSpace(req.ObservedAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, req.ObservedAt)
+		if err != nil {
+			return application.MarketLogInput{}, errInvalidObservedAt
+		}
+		observedAt = parsed.UTC()
+	}
+	return application.MarketLogInput{
+		ObservedAt:        observedAt,
+		Source:            req.Source,
+		Action:            req.Action,
+		PriceAmount:       req.PriceAmount,
+		PriceCurrency:     req.PriceCurrency,
+		ListingURL:        req.ListingURL,
+		ListingTitle:      req.ListingTitle,
+		ExternalListingID: req.ExternalListingID,
+	}, nil
+}
+
+var errInvalidObservedAt = errorString("observedAt must be an RFC3339 timestamp")

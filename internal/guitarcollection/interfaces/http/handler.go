@@ -26,19 +26,21 @@ import (
 //
 // It deliberately holds no business rules of its own.
 type Handler struct {
-	svc       *application.Service
-	auth      auth.Authenticator
-	presigner *storage.Presigner
+	svc        *application.Service
+	marketLogs *application.MarketLogService
+	auth       auth.Authenticator
+	presigner  *storage.Presigner
 }
 
-// NewHandler constructs a Handler wired to the supplied service and
-// authenticator. Both arguments are required. presigner may be nil when image
-// uploads are not configured.
-func NewHandler(svc *application.Service, a auth.Authenticator, presigner *storage.Presigner) *Handler {
-	return &Handler{svc: svc, auth: a, presigner: presigner}
+// NewHandler constructs a Handler wired to the supplied services and
+// authenticator. Both service arguments are required. presigner may be nil
+// when image uploads are not configured.
+func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, a auth.Authenticator, presigner *storage.Presigner) *Handler {
+	return &Handler{svc: svc, marketLogs: marketLogs, auth: a, presigner: presigner}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
+var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
 
 // Handle is the entrypoint suitable for lambda.Start.
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -64,6 +66,15 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	case path == "/upload/presign" && method == "POST":
 		return h.presignUpload(ctx, req.Body)
 	default:
+		if m := guitarMarketLogPath.FindStringSubmatch(path); m != nil {
+			id := m[1]
+			switch method {
+			case "GET":
+				return h.listMarketLogs(ctx, id)
+			case "POST":
+				return h.createMarketLogs(ctx, id, req.Body)
+			}
+		}
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
 			switch method {

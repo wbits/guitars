@@ -1,6 +1,6 @@
 module github.com/wbits/guitars
 
-go 1.22
+go 1.24
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0

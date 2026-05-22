@@ -12,6 +12,10 @@ Parameters:
     Type: String
     Default: Guitars
     Description: DynamoDB table name that holds the guitars.
+  MarketLogsTableName:
+    Type: String
+    Default: MarketLogs
+    Description: DynamoDB table name that holds marketplace price observations.
   ApiDomainName:
     Type: String
     Default: guitars.brouwers.club
@@ -42,6 +46,7 @@ Globals:
     Environment:
       Variables:
         GUITARS_TABLE: !Ref TableName
+        MARKET_LOGS_TABLE: !Ref MarketLogsTableName
         AWS_ENDPOINT_URL: ""
         COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
@@ -101,6 +106,31 @@ Resources:
         - AttributeName: id
           KeyType: HASH
 
+  MarketLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref MarketLogsTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: guitarId
+          AttributeType: S
+        - AttributeName: observedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: guitarIdIndex
+          KeySchema:
+            - AttributeName: guitarId
+              KeyType: HASH
+            - AttributeName: observedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -109,6 +139,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MarketLogsTableName
         - !If
           - HasImagesBucket
           - Statement:
@@ -162,6 +194,21 @@ Resources:
           Type: Api
           Properties:
             Path: /upload/presign
+            Method: options
+        ListMarketLogs:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/market-log
+            Method: get
+        CreateMarketLogs:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/market-log
+            Method: post
+        OptionsMarketLogs:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/market-log
             Method: options
 
   ApiCertificate:
@@ -238,3 +285,6 @@ Outputs:
   TableName:
     Description: DynamoDB table used by the GuitarCollection API.
     Value: !Ref GuitarsTable
+  MarketLogsTableName:
+    Description: DynamoDB table used for marketplace price observations.
+    Value: !Ref MarketLogsTable

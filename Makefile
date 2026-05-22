@@ -9,6 +9,7 @@ STACK_NAME       := $(STACK_NAME)
 LOCALSTACK_ENDPOINT ?= http://localhost:4566
 AWS_REGION          ?= us-east-1
 GUITARS_TABLE       ?= Guitars
+MARKET_LOGS_TABLE   ?= MarketLogs
 BEARER_SECRET_ID    ?= guitars/bearer-token
 BEARER_TOKEN        ?= local-dev-token
 SAM                 ?= $(shell brew --prefix aws-sam-cli 2>/dev/null)/bin/sam
@@ -66,6 +67,7 @@ localstack-down:
 .PHONY: localstack-init
 localstack-init:
 	GUITARS_TABLE=$(GUITARS_TABLE) \
+	MARKET_LOGS_TABLE=$(MARKET_LOGS_TABLE) \
 	BEARER_SECRET_ID=$(BEARER_SECRET_ID) \
 	BEARER_TOKEN=$(BEARER_TOKEN) \
 	AWS_ENDPOINT_URL=$(LOCALSTACK_ENDPOINT) \
@@ -79,9 +81,15 @@ api: build
 	    --docker-network guitars-net \
 	    --parameter-overrides \
 	        TableName=$(GUITARS_TABLE) \
+	        MarketLogsTableName=$(MARKET_LOGS_TABLE) \
 	        BearerSecretName=$(BEARER_SECRET_ID) \
 	    --env-vars env.local.json \
 	    --container-env-vars container.local.json
+
+## crawl: search marketplaces and upload price observations to the API
+.PHONY: crawl
+crawl:
+	GOTOOLCHAIN=local go run ./cmd/crawler $(ARGS)
 
 ## package: produce a CloudFormation package (requires S3_BUCKET)
 .PHONY: package

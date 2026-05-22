@@ -1,6 +1,10 @@
 package httpapi
 
-import "github.com/wbits/guitars/internal/guitarcollection/domain"
+import (
+	"time"
+
+	"github.com/wbits/guitars/internal/guitarcollection/domain"
+)
 
 // guitarRequest is the JSON payload accepted by POST /guitar and PUT /guitar/{id}.
 type guitarRequest struct {
@@ -60,4 +64,45 @@ type presignUploadResponse struct {
 // errorResponse is the JSON envelope used for non-2xx responses.
 type errorResponse struct {
 	Error string `json:"error"`
+}
+
+// marketLogRequest is the JSON payload for POST /guitar/{id}/market-log.
+type marketLogRequest struct {
+	ObservedAt        string `json:"observedAt,omitempty"`
+	Source            string `json:"source"`
+	Action            string `json:"action"`
+	PriceAmount       int64  `json:"priceAmount"`
+	PriceCurrency     string `json:"priceCurrency"`
+	ListingURL        string `json:"listingUrl,omitempty"`
+	ListingTitle      string `json:"listingTitle,omitempty"`
+	ExternalListingID string `json:"externalListingId,omitempty"`
+}
+
+// marketLogResponse is the JSON projection of a MarketLog aggregate.
+type marketLogResponse struct {
+	ID                string `json:"id"`
+	GuitarID          string `json:"guitarId"`
+	ObservedAt        string `json:"observedAt"`
+	Source            string `json:"source"`
+	Action            string `json:"action"`
+	PriceAmount       int64  `json:"priceAmount"`
+	PriceCurrency     string `json:"priceCurrency"`
+	ListingURL        string `json:"listingUrl,omitempty"`
+	ListingTitle      string `json:"listingTitle,omitempty"`
+	ExternalListingID string `json:"externalListingId,omitempty"`
+}
+
+func toMarketLogResponse(log *domain.MarketLog) marketLogResponse {
+	return marketLogResponse{
+		ID:                log.ID(),
+		GuitarID:          log.GuitarID(),
+		ObservedAt:        log.ObservedAt().UTC().Format(time.RFC3339),
+		Source:            string(log.Source()),
+		Action:            string(log.Action()),
+		PriceAmount:       log.Price().Amount(),
+		PriceCurrency:     string(log.Price().Currency()),
+		ListingURL:        log.ListingURL(),
+		ListingTitle:      log.ListingTitle(),
+		ExternalListingID: log.ExternalListingID(),
+	}
 }

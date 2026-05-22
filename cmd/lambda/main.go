@@ -44,6 +44,7 @@ func main() {
 	}
 
 	tableName := envOrDefault("GUITARS_TABLE", "Guitars")
+	marketLogsTable := envOrDefault("MARKET_LOGS_TABLE", "MarketLogs")
 
 	ddbOpts := []func(*dynamodb.Options){}
 	s3Opts := []func(*s3.Options){}
@@ -79,15 +80,18 @@ func main() {
 		)
 	}
 
+	marketLogRepo := persistence.NewMarketLogDynamoRepository(ddb, marketLogsTable)
+
 	authn, err := auth.BuildAuthenticator(ctx, awsCfg, smOpts)
 	if err != nil {
 		log.Fatalf("build authenticator: %v", err)
 	}
 
 	svc := application.NewService(repo, uuidGen{})
-	handler := httpapi.NewHandler(svc, authn, presigner)
+	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{})
+	handler := httpapi.NewHandler(svc, marketLogs, authn, presigner)
 
-	log.Printf("guitars lambda starting (table=%s, auth=%s, uploads=%t)", tableName, auth.AuthenticatorMode(), presigner != nil)
+	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, auth=%s, uploads=%t)", tableName, marketLogsTable, auth.AuthenticatorMode(), presigner != nil)
 	lambda.Start(handler.Handle)
 }
 

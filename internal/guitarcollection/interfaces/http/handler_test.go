@@ -28,11 +28,14 @@ func (s *sequentialIDs) NewID() string {
 
 func newTestHandler() *Handler {
 	repo := persistence.NewMemoryRepository()
-	svc := application.NewService(repo, &sequentialIDs{ids: []string{"g-1", "g-2", "g-3"}})
+	marketRepo := persistence.NewMemoryMarketLogRepository()
+	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "g-3", "ml-1", "ml-2", "ml-3"}}
+	svc := application.NewService(repo, ids)
+	marketLogs := application.NewMarketLogService(repo, marketRepo, ids)
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, authn, nil)
+	return NewHandler(svc, marketLogs, authn, nil)
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -228,5 +231,47 @@ func TestHandler_Get_IncludesCORSHeaders(t *testing.T) {
 	resp, _ := h.Handle(context.Background(), reqWithAuth("GET", "/guitar", ""))
 	if resp.Headers["Access-Control-Allow-Origin"] != "*" {
 		t.Errorf("Allow-Origin: got %q, want *", resp.Headers["Access-Control-Allow-Origin"])
+	}
+}
+
+func TestHandler_MarketLog_CreateAndList(t *testing.T) {
+	h := newTestHandler()
+	createResp, _ := h.Handle(context.Background(), reqWithAuth("POST", "/guitar", validBody()))
+	if createResp.StatusCode != 201 {
+		t.Fatalf("create guitar: want 201, got %d (%s)", createResp.StatusCode, createResp.Body)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(createResp.Body), &created); err != nil {
+		t.Fatalf("decode guitar: %v", err)
+	}
+
+	logBody := `[{
+		"source":"reverb",
+		"action":"for_sale",
+		"priceAmount":150000,
+		"priceCurrency":"EUR",
+		"listingUrl":"https://reverb.com/item/1",
+		"listingTitle":"Fender Strat"
+	}]`
+	postResp, _ := h.Handle(context.Background(), reqWithAuth("POST", "/guitar/"+created.ID+"/market-log", logBody))
+	if postResp.StatusCode != 201 {
+		t.Fatalf("create market log: want 201, got %d (%s)", postResp.StatusCode, postResp.Body)
+	}
+
+	listResp, _ := h.Handle(context.Background(), reqWithAuth("GET", "/guitar/"+created.ID+"/market-log", ""))
+	if listResp.StatusCode != 200 {
+		t.Fatalf("list market logs: want 200, got %d (%s)", listResp.StatusCode, listResp.Body)
+	}
+	var logs []struct {
+		Source string `json:"source"`
+		Action string `json:"action"`
+	}
+	if err := json.Unmarshal([]byte(listResp.Body), &logs); err != nil {
+		t.Fatalf("decode logs: %v", err)
+	}
+	if len(logs) != 1 || logs[0].Source != "reverb" || logs[0].Action != "for_sale" {
+		t.Fatalf("unexpected logs: %+v", logs)
 	}
 }
