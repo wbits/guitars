@@ -34,6 +34,8 @@ Globals:
       Variables:
         GUITARS_TABLE: !Ref TableName
         BEARER_SECRET_ID: !Ref BearerSecretName
+        AWS_ENDPOINT_URL: ""
+        AWS_REGION: !Ref AWS::Region
 
 Resources:
 

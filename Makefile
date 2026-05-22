@@ -11,6 +11,7 @@ AWS_REGION          ?= us-east-1
 GUITARS_TABLE       ?= Guitars
 BEARER_SECRET_ID    ?= guitars/bearer-token
 BEARER_TOKEN        ?= local-dev-token
+SAM                 ?= $(shell brew --prefix aws-sam-cli 2>/dev/null)/bin/sam
 
 .DEFAULT_GOAL := help
 
@@ -54,7 +55,7 @@ clean:
 ## localstack-up: start LocalStack (DynamoDB + Secrets Manager) in docker
 .PHONY: localstack-up
 localstack-up:
-	docker compose up -d localstack
+	docker-compose up -d localstack
 
 ## localstack-down: stop LocalStack
 .PHONY: localstack-down
@@ -74,12 +75,13 @@ localstack-init:
 ## api: run the API locally via SAM CLI against LocalStack
 .PHONY: api
 api: build
-	sam local start-api \
+	$(SAM) local start-api \
 	    --docker-network guitars-net \
 	    --parameter-overrides \
 	        TableName=$(GUITARS_TABLE) \
 	        BearerSecretName=$(BEARER_SECRET_ID) \
-	    --env-vars <(echo '{ "GuitarsFunction": { "AWS_ENDPOINT_URL": "http://guitars-localstack:4566", "AWS_REGION": "$(AWS_REGION)", "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "GUITARS_TABLE": "$(GUITARS_TABLE)", "BEARER_SECRET_ID": "$(BEARER_SECRET_ID)" } }')
+	    --env-vars env.local.json \
+	    --container-env-vars container.local.json
 
 ## package: produce a CloudFormation package (requires S3_BUCKET)
 .PHONY: package

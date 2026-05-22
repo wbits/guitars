@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -40,10 +41,21 @@ func main() {
 	tableName := envOrDefault("GUITARS_TABLE", "Guitars")
 	secretID := envOrDefault("BEARER_SECRET_ID", "guitars/bearer-token")
 
-	ddb := dynamodb.NewFromConfig(awsCfg)
+	ddbOpts := []func(*dynamodb.Options){}
+	smOpts := []func(*secretsmanager.Options){}
+	if endpoint := os.Getenv("AWS_ENDPOINT_URL"); endpoint != "" {
+		ddbOpts = append(ddbOpts, func(o *dynamodb.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+		smOpts = append(smOpts, func(o *secretsmanager.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+	}
+
+	ddb := dynamodb.NewFromConfig(awsCfg, ddbOpts...)
 	repo := persistence.NewDynamoRepository(ddb, tableName)
 
-	sm := secretsmanager.NewFromConfig(awsCfg)
+	sm := secretsmanager.NewFromConfig(awsCfg, smOpts...)
 	loader := &auth.SecretsManagerLoader{Client: sm, SecretID: secretID}
 	authn := auth.NewBearerAuthenticator(loader, 5*time.Minute)
 
