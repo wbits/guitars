@@ -29,9 +29,9 @@ func TestResolveCognitoPassword_EmptyWithoutEnvOrSecret(t *testing.T) {
 	}
 }
 
-func TestResolveCognitoPassword_RequiresSecretIDWhenEnvMissing(t *testing.T) {
-	if os.Getenv("CI") == "" {
-		t.Skip("requires AWS credentials and guitars/crawler-cognito-password secret")
+func TestResolveCognitoPassword_FromSecretsManager(t *testing.T) {
+	if os.Getenv("RUN_AWS_INTEGRATION_TESTS") == "" {
+		t.Skip("set RUN_AWS_INTEGRATION_TESTS=1 to run against AWS Secrets Manager")
 	}
 	t.Setenv("COGNITO_PASSWORD", "")
 	t.Setenv("COGNITO_PASSWORD_SECRET_ID", "guitars/crawler-cognito-password")
