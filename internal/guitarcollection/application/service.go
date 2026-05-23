@@ -33,14 +33,15 @@ func (s *Service) AddGuitar(ctx context.Context, in GuitarInput) (*domain.Guitar
 		return nil, err
 	}
 	g, err := domain.NewGuitar(domain.GuitarProps{
-		ID:           s.ids.NewID(),
-		SerialNumber: in.SerialNumber,
-		Pictures:     in.Pictures,
-		Description:  in.Description,
-		Brand:        in.Brand,
-		TypeName:     in.TypeName,
-		BuildYear:    in.BuildYear,
-		Price:        price,
+		ID:                s.ids.NewID(),
+		SerialNumber:      in.SerialNumber,
+		Pictures:          in.Pictures,
+		CoverPictureIndex: in.CoverPictureIndex,
+		Description:       in.Description,
+		Brand:             in.Brand,
+		TypeName:          in.TypeName,
+		BuildYear:         in.BuildYear,
+		Price:             price,
 	})
 	if err != nil {
 		return nil, err
@@ -64,13 +65,14 @@ func (s *Service) UpdateGuitar(ctx context.Context, id string, in GuitarInput) (
 		return nil, err
 	}
 	if err := g.Update(domain.GuitarProps{
-		SerialNumber: in.SerialNumber,
-		Pictures:     in.Pictures,
-		Description:  in.Description,
-		Brand:        in.Brand,
-		TypeName:     in.TypeName,
-		BuildYear:    in.BuildYear,
-		Price:        price,
+		SerialNumber:      in.SerialNumber,
+		Pictures:          in.Pictures,
+		CoverPictureIndex: in.CoverPictureIndex,
+		Description:       in.Description,
+		Brand:             in.Brand,
+		TypeName:          in.TypeName,
+		BuildYear:         in.BuildYear,
+		Price:             price,
 	}); err != nil {
 		return nil, err
 	}

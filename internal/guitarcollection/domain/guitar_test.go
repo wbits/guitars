@@ -119,6 +119,25 @@ func TestNewGuitar_RejectsInvalidPictureURL(t *testing.T) {
 	}
 }
 
+func TestNewGuitar_RejectsOutOfRangeCoverPictureIndex(t *testing.T) {
+	p := validProps(t)
+	p.CoverPictureIndex = 2
+	_, err := NewGuitar(p)
+	if !IsValidationError(err) {
+		t.Fatalf("expected ValidationError for coverPictureIndex, got %v", err)
+	}
+}
+
+func TestNewGuitar_DefaultsCoverPictureIndexToZero(t *testing.T) {
+	g, err := NewGuitar(validProps(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if g.CoverPictureIndex() != 0 {
+		t.Errorf("coverPictureIndex: want 0, got %d", g.CoverPictureIndex())
+	}
+}
+
 func TestGuitar_PicturesIsDefensiveCopy(t *testing.T) {
 	g, err := NewGuitar(validProps(t))
 	if err != nil {

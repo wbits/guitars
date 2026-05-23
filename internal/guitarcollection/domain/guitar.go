@@ -18,27 +18,29 @@ const minBuildYear = 1800
 // cannot be bypassed: every Guitar instance that exists in memory is
 // guaranteed to be valid.
 type Guitar struct {
-	id           string
-	serialNumber string
-	pictures     []string
-	description  string
-	brand        string
-	typeName     string
-	buildYear    int
-	price        Money
+	id                string
+	serialNumber      string
+	pictures          []string
+	coverPictureIndex int
+	description       string
+	brand             string
+	typeName          string
+	buildYear         int
+	price             Money
 }
 
 // GuitarProps is the data-transfer shape used to create or update a Guitar.
 // Using a struct keeps the constructor stable as fields are added.
 type GuitarProps struct {
-	ID           string
-	SerialNumber string
-	Pictures     []string
-	Description  string
-	Brand        string
-	TypeName     string
-	BuildYear    int
-	Price        Money
+	ID                string
+	SerialNumber      string
+	Pictures          []string
+	CoverPictureIndex int
+	Description       string
+	Brand             string
+	TypeName          string
+	BuildYear         int
+	Price             Money
 }
 
 // NewGuitar validates the supplied props and returns a freshly built Guitar.
@@ -67,17 +69,32 @@ func NewGuitar(p GuitarProps) (*Guitar, error) {
 	if err != nil {
 		return nil, err
 	}
+	coverIndex, err := validateCoverPictureIndex(p.CoverPictureIndex, len(pictures))
+	if err != nil {
+		return nil, err
+	}
 
 	return &Guitar{
-		id:           strings.TrimSpace(p.ID),
-		serialNumber: strings.TrimSpace(p.SerialNumber),
-		pictures:     pictures,
-		description:  strings.TrimSpace(p.Description),
-		brand:        strings.TrimSpace(p.Brand),
-		typeName:     strings.TrimSpace(p.TypeName),
-		buildYear:    p.BuildYear,
-		price:        p.Price,
+		id:                strings.TrimSpace(p.ID),
+		serialNumber:      strings.TrimSpace(p.SerialNumber),
+		pictures:          pictures,
+		coverPictureIndex: coverIndex,
+		description:       strings.TrimSpace(p.Description),
+		brand:             strings.TrimSpace(p.Brand),
+		typeName:          strings.TrimSpace(p.TypeName),
+		buildYear:         p.BuildYear,
+		price:             p.Price,
 	}, nil
+}
+
+func validateCoverPictureIndex(index, pictureCount int) (int, error) {
+	if pictureCount == 0 {
+		return 0, nil
+	}
+	if index < 0 || index >= pictureCount {
+		return 0, newValidationError("coverPictureIndex", "must refer to an existing picture")
+	}
+	return index, nil
 }
 
 func validatePictureURLs(in []string) ([]string, error) {
@@ -131,7 +148,8 @@ func (g *Guitar) Pictures() []string {
 	copy(out, g.pictures)
 	return out
 }
-func (g *Guitar) Description() string { return g.description }
+func (g *Guitar) CoverPictureIndex() int { return g.coverPictureIndex }
+func (g *Guitar) Description() string    { return g.description }
 func (g *Guitar) Brand() string       { return g.brand }
 func (g *Guitar) TypeName() string    { return g.typeName }
 func (g *Guitar) BuildYear() int      { return g.buildYear }

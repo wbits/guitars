@@ -8,27 +8,29 @@ import (
 
 // guitarRequest is the JSON payload accepted by POST /guitar and PUT /guitar/{id}.
 type guitarRequest struct {
-	SerialNumber  string   `json:"serialNumber,omitempty"`
-	Pictures      []string `json:"pictures,omitempty"`
-	Description   string   `json:"description,omitempty"`
-	Brand         string   `json:"brand"`
-	TypeName      string   `json:"typeName"`
-	BuildYear     int      `json:"buildYear"`
-	PriceAmount   int64    `json:"priceAmount"`
-	PriceCurrency string   `json:"priceCurrency"`
+	SerialNumber      string   `json:"serialNumber,omitempty"`
+	Pictures          []string `json:"pictures,omitempty"`
+	CoverPictureIndex int      `json:"coverPictureIndex,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	Brand             string   `json:"brand"`
+	TypeName          string   `json:"typeName"`
+	BuildYear         int      `json:"buildYear"`
+	PriceAmount       int64    `json:"priceAmount"`
+	PriceCurrency     string   `json:"priceCurrency"`
 }
 
 // guitarResponse is the JSON projection of a Guitar aggregate sent to clients.
 type guitarResponse struct {
-	ID            string   `json:"id"`
-	SerialNumber  string   `json:"serialNumber,omitempty"`
-	Pictures      []string `json:"pictures"`
-	Description   string   `json:"description,omitempty"`
-	Brand         string   `json:"brand"`
-	TypeName      string   `json:"typeName"`
-	BuildYear     int      `json:"buildYear"`
-	PriceAmount   int64    `json:"priceAmount"`
-	PriceCurrency string   `json:"priceCurrency"`
+	ID                string   `json:"id"`
+	SerialNumber      string   `json:"serialNumber,omitempty"`
+	Pictures          []string `json:"pictures"`
+	CoverPictureIndex int      `json:"coverPictureIndex"`
+	Description       string   `json:"description,omitempty"`
+	Brand             string   `json:"brand"`
+	TypeName          string   `json:"typeName"`
+	BuildYear         int      `json:"buildYear"`
+	PriceAmount       int64    `json:"priceAmount"`
+	PriceCurrency     string   `json:"priceCurrency"`
 }
 
 func toResponse(g *domain.Guitar) guitarResponse {
@@ -37,15 +39,16 @@ func toResponse(g *domain.Guitar) guitarResponse {
 		pictures = []string{}
 	}
 	return guitarResponse{
-		ID:            g.ID(),
-		SerialNumber:  g.SerialNumber(),
-		Pictures:      pictures,
-		Description:   g.Description(),
-		Brand:         g.Brand(),
-		TypeName:      g.TypeName(),
-		BuildYear:     g.BuildYear(),
-		PriceAmount:   g.Price().Amount(),
-		PriceCurrency: string(g.Price().Currency()),
+		ID:                g.ID(),
+		SerialNumber:      g.SerialNumber(),
+		Pictures:          pictures,
+		CoverPictureIndex: g.CoverPictureIndex(),
+		Description:       g.Description(),
+		Brand:             g.Brand(),
+		TypeName:          g.TypeName(),
+		BuildYear:         g.BuildYear(),
+		PriceAmount:       g.Price().Amount(),
+		PriceCurrency:     string(g.Price().Currency()),
 	}
 }
 

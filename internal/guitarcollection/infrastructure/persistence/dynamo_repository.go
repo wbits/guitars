@@ -43,28 +43,30 @@ func NewDynamoRepository(client DynamoAPI, table string) *DynamoRepository {
 // this type local to the persistence package ensures the domain layer stays
 // free of DynamoDB tags and concerns.
 type guitarItem struct {
-	ID            string   `dynamodbav:"id"`
-	SerialNumber  string   `dynamodbav:"serialNumber,omitempty"`
-	Pictures      []string `dynamodbav:"pictures,omitempty"`
-	Description   string   `dynamodbav:"description,omitempty"`
-	Brand         string   `dynamodbav:"brand"`
-	TypeName      string   `dynamodbav:"typeName"`
-	BuildYear     int      `dynamodbav:"buildYear"`
-	PriceAmount   int64    `dynamodbav:"priceAmount"`
-	PriceCurrency string   `dynamodbav:"priceCurrency"`
+	ID                string   `dynamodbav:"id"`
+	SerialNumber      string   `dynamodbav:"serialNumber,omitempty"`
+	Pictures          []string `dynamodbav:"pictures,omitempty"`
+	CoverPictureIndex int      `dynamodbav:"coverPictureIndex,omitempty"`
+	Description       string   `dynamodbav:"description,omitempty"`
+	Brand             string   `dynamodbav:"brand"`
+	TypeName          string   `dynamodbav:"typeName"`
+	BuildYear         int      `dynamodbav:"buildYear"`
+	PriceAmount       int64    `dynamodbav:"priceAmount"`
+	PriceCurrency     string   `dynamodbav:"priceCurrency"`
 }
 
 func toItem(g *domain.Guitar) guitarItem {
 	return guitarItem{
-		ID:            g.ID(),
-		SerialNumber:  g.SerialNumber(),
-		Pictures:      g.Pictures(),
-		Description:   g.Description(),
-		Brand:         g.Brand(),
-		TypeName:      g.TypeName(),
-		BuildYear:     g.BuildYear(),
-		PriceAmount:   g.Price().Amount(),
-		PriceCurrency: string(g.Price().Currency()),
+		ID:                g.ID(),
+		SerialNumber:      g.SerialNumber(),
+		Pictures:          g.Pictures(),
+		CoverPictureIndex: g.CoverPictureIndex(),
+		Description:       g.Description(),
+		Brand:             g.Brand(),
+		TypeName:          g.TypeName(),
+		BuildYear:         g.BuildYear(),
+		PriceAmount:       g.Price().Amount(),
+		PriceCurrency:     string(g.Price().Currency()),
 	}
 }
 
@@ -74,14 +76,15 @@ func (i guitarItem) toDomain() (*domain.Guitar, error) {
 		return nil, fmt.Errorf("corrupt price for guitar %s: %w", i.ID, err)
 	}
 	return domain.NewGuitar(domain.GuitarProps{
-		ID:           i.ID,
-		SerialNumber: i.SerialNumber,
-		Pictures:     i.Pictures,
-		Description:  i.Description,
-		Brand:        i.Brand,
-		TypeName:     i.TypeName,
-		BuildYear:    i.BuildYear,
-		Price:        price,
+		ID:                i.ID,
+		SerialNumber:      i.SerialNumber,
+		Pictures:          i.Pictures,
+		CoverPictureIndex: i.CoverPictureIndex,
+		Description:       i.Description,
+		Brand:             i.Brand,
+		TypeName:          i.TypeName,
+		BuildYear:         i.BuildYear,
+		Price:             price,
 	})
 }
 
