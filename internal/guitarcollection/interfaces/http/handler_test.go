@@ -340,6 +340,9 @@ func TestHandler_OptionsPreflight_Returns204WithoutAuth(t *testing.T) {
 	if !strings.Contains(resp.Headers["Access-Control-Allow-Headers"], "Authorization") {
 		t.Errorf("Allow-Headers missing Authorization: %q", resp.Headers["Access-Control-Allow-Headers"])
 	}
+	if !strings.Contains(resp.Headers["Access-Control-Allow-Methods"], "PATCH") {
+		t.Errorf("Allow-Methods missing PATCH: %q", resp.Headers["Access-Control-Allow-Methods"])
+	}
 }
 
 func TestHandler_Get_IncludesCORSHeaders(t *testing.T) {

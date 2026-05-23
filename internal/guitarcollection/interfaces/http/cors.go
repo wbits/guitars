@@ -17,7 +17,7 @@ func corsHeaders() map[string]string {
 	return map[string]string{
 		"Access-Control-Allow-Origin":  corsAllowOrigin(),
 		"Access-Control-Allow-Headers": "Content-Type,Authorization,Accept",
-		"Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+		"Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 	}
 }
 
