@@ -37,9 +37,16 @@ func (f *fakeDynamo) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ ...
 	return &dynamodb.GetItemOutput{Item: item}, nil
 }
 
-func (f *fakeDynamo) Scan(_ context.Context, _ *dynamodb.ScanInput, _ ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
+func (f *fakeDynamo) Scan(_ context.Context, in *dynamodb.ScanInput, _ ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
 	out := make([]map[string]ddbtypes.AttributeValue, 0, len(f.items))
 	for _, v := range f.items {
+		if in.FilterExpression != nil && *in.FilterExpression == "#owner = :owner" {
+			want := in.ExpressionAttributeValues[":owner"].(*ddbtypes.AttributeValueMemberS).Value
+			got, ok := v["owner"].(*ddbtypes.AttributeValueMemberS)
+			if !ok || got.Value != want {
+				continue
+			}
+		}
 		out = append(out, v)
 	}
 	return &dynamodb.ScanOutput{Items: out}, nil
@@ -62,6 +69,7 @@ func buildGuitar(t *testing.T, id string) *domain.Guitar {
 	}
 	g, err := domain.NewGuitar(domain.GuitarProps{
 		ID:           id,
+		Owner:        "user-1",
 		SerialNumber: "SN-" + id,
 		Pictures:     []string{"https://example.com/" + id + ".jpg"},
 		Description:  "test",
@@ -105,17 +113,20 @@ func TestDynamoRepository_FindByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestDynamoRepository_FindAll(t *testing.T) {
+func TestDynamoRepository_FindByOwner(t *testing.T) {
 	fd := newFakeDynamo()
 	repo := NewDynamoRepository(fd, "Guitars")
 	_ = repo.Save(context.Background(), buildGuitar(t, "g-2"))
 	_ = repo.Save(context.Background(), buildGuitar(t, "g-1"))
-	all, err := repo.FindAll(context.Background())
+	all, err := repo.FindByOwner(context.Background(), "user-1")
 	if err != nil {
-		t.Fatalf("findall: %v", err)
+		t.Fatalf("find by owner: %v", err)
 	}
 	if len(all) != 2 || all[0].ID() != "g-1" || all[1].ID() != "g-2" {
 		t.Errorf("unexpected order/count: %v", []string{all[0].ID(), all[1].ID()})
+	}
+	if none, err := repo.FindByOwner(context.Background(), "other-user"); err != nil || len(none) != 0 {
+		t.Fatalf("want empty list for other user, got %d items err=%v", len(none), err)
 	}
 }
 

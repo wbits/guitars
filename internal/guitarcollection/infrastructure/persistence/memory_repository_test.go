@@ -8,7 +8,7 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
 
-func mustGuitar(t *testing.T, id, brand string) *domain.Guitar {
+func mustGuitar(t *testing.T, id, brand, owner string) *domain.Guitar {
 	t.Helper()
 	price, err := domain.NewMoney(100000, domain.EUR)
 	if err != nil {
@@ -16,6 +16,7 @@ func mustGuitar(t *testing.T, id, brand string) *domain.Guitar {
 	}
 	g, err := domain.NewGuitar(domain.GuitarProps{
 		ID:        id,
+		Owner:     owner,
 		Brand:     brand,
 		TypeName:  "Stratocaster",
 		BuildYear: 2000,
@@ -29,7 +30,7 @@ func mustGuitar(t *testing.T, id, brand string) *domain.Guitar {
 
 func TestMemoryRepository_SaveAndFind(t *testing.T) {
 	r := NewMemoryRepository()
-	g := mustGuitar(t, "g-1", "Fender")
+	g := mustGuitar(t, "g-1", "Fender", "user-1")
 	if err := r.Save(context.Background(), g); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -50,13 +51,14 @@ func TestMemoryRepository_FindByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestMemoryRepository_FindAll_SortedByID(t *testing.T) {
+func TestMemoryRepository_FindByOwner_SortedByID(t *testing.T) {
 	r := NewMemoryRepository()
-	_ = r.Save(context.Background(), mustGuitar(t, "g-2", "Gibson"))
-	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender"))
-	all, err := r.FindAll(context.Background())
+	_ = r.Save(context.Background(), mustGuitar(t, "g-2", "Gibson", "user-1"))
+	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender", "user-1"))
+	_ = r.Save(context.Background(), mustGuitar(t, "g-3", "Gretsch", "user-2"))
+	all, err := r.FindByOwner(context.Background(), "user-1")
 	if err != nil {
-		t.Fatalf("find all: %v", err)
+		t.Fatalf("find by owner: %v", err)
 	}
 	if len(all) != 2 || all[0].ID() != "g-1" || all[1].ID() != "g-2" {
 		t.Errorf("expected stable order g-1, g-2; got %v", []string{all[0].ID(), all[1].ID()})
@@ -65,7 +67,7 @@ func TestMemoryRepository_FindAll_SortedByID(t *testing.T) {
 
 func TestMemoryRepository_Delete(t *testing.T) {
 	r := NewMemoryRepository()
-	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender"))
+	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender", "user-1"))
 	if err := r.Delete(context.Background(), "g-1"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}

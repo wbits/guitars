@@ -26,6 +26,11 @@ func newValidationError(field, message string) *ValidationError {
 	return &ValidationError{Field: field, Message: message}
 }
 
+// InvalidField returns a validation error for application-layer checks.
+func InvalidField(field, message string) error {
+	return newValidationError(field, message)
+}
+
 // IsValidationError reports whether err (or any error it wraps) is a
 // *ValidationError. It is the canonical way for outer layers to discriminate
 // between domain validation failures and infrastructure failures.

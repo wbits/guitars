@@ -44,6 +44,7 @@ func NewDynamoRepository(client DynamoAPI, table string) *DynamoRepository {
 // free of DynamoDB tags and concerns.
 type guitarItem struct {
 	ID                string   `dynamodbav:"id"`
+	Owner             string   `dynamodbav:"owner,omitempty"`
 	SerialNumber      string   `dynamodbav:"serialNumber,omitempty"`
 	Pictures          []string `dynamodbav:"pictures,omitempty"`
 	CoverPictureIndex int      `dynamodbav:"coverPictureIndex,omitempty"`
@@ -58,6 +59,7 @@ type guitarItem struct {
 func toItem(g *domain.Guitar) guitarItem {
 	return guitarItem{
 		ID:                g.ID(),
+		Owner:             g.Owner(),
 		SerialNumber:      g.SerialNumber(),
 		Pictures:          g.Pictures(),
 		CoverPictureIndex: g.CoverPictureIndex(),
@@ -77,6 +79,7 @@ func (i guitarItem) toDomain() (*domain.Guitar, error) {
 	}
 	return domain.NewGuitar(domain.GuitarProps{
 		ID:                i.ID,
+		Owner:             i.Owner,
 		SerialNumber:      i.SerialNumber,
 		Pictures:          i.Pictures,
 		CoverPictureIndex: i.CoverPictureIndex,
@@ -125,14 +128,18 @@ func (r *DynamoRepository) FindByID(ctx context.Context, id string) (*domain.Gui
 	return item.toDomain()
 }
 
-// FindAll returns every guitar in the collection. Uses Scan with paging since
-// a personal guitar collection is small.
-func (r *DynamoRepository) FindAll(ctx context.Context) ([]*domain.Guitar, error) {
+// FindByOwner returns guitars owned by the given user id.
+func (r *DynamoRepository) FindByOwner(ctx context.Context, owner string) ([]*domain.Guitar, error) {
 	var items []guitarItem
 	var startKey map[string]ddbtypes.AttributeValue
 	for {
 		out, err := r.client.Scan(ctx, &dynamodb.ScanInput{
-			TableName:         aws.String(r.table),
+			TableName:                 aws.String(r.table),
+			FilterExpression:          aws.String("#owner = :owner"),
+			ExpressionAttributeNames:  map[string]string{"#owner": "owner"},
+			ExpressionAttributeValues: map[string]ddbtypes.AttributeValue{
+				":owner": &ddbtypes.AttributeValueMemberS{Value: owner},
+			},
 			ExclusiveStartKey: startKey,
 		})
 		if err != nil {

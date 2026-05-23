@@ -22,6 +22,7 @@ type guitarRequest struct {
 // guitarResponse is the JSON projection of a Guitar aggregate sent to clients.
 type guitarResponse struct {
 	ID                string   `json:"id"`
+	Owner             string   `json:"owner,omitempty"`
 	SerialNumber      string   `json:"serialNumber,omitempty"`
 	Pictures          []string `json:"pictures"`
 	CoverPictureIndex int      `json:"coverPictureIndex"`
@@ -40,6 +41,7 @@ func toResponse(g *domain.Guitar) guitarResponse {
 	}
 	return guitarResponse{
 		ID:                g.ID(),
+		Owner:             g.Owner(),
 		SerialNumber:      g.SerialNumber(),
 		Pictures:          pictures,
 		CoverPictureIndex: g.CoverPictureIndex(),

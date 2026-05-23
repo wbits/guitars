@@ -9,6 +9,8 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
 )
 
+const marketLogTestOwner = "user-1"
+
 func TestMarketLogService_AddAndList(t *testing.T) {
 	guitars := persistence.NewMemoryRepository()
 	logs := persistence.NewMemoryMarketLogRepository()
@@ -18,7 +20,7 @@ func TestMarketLogService_AddAndList(t *testing.T) {
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)
 	g, err := domain.NewGuitar(domain.GuitarProps{
-		ID: "g-1", Brand: "Fender", TypeName: "Stratocaster", BuildYear: 1996, Price: price,
+		ID: "g-1", Owner: marketLogTestOwner, Brand: "Fender", TypeName: "Stratocaster", BuildYear: 1996, Price: price,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +30,7 @@ func TestMarketLogService_AddAndList(t *testing.T) {
 	}
 
 	observed := time.Date(2026, 5, 22, 10, 0, 0, 0, time.UTC)
-	created, err := marketSvc.AddMarketLog(ctx, "g-1", MarketLogInput{
+	created, err := marketSvc.AddMarketLog(ctx, marketLogTestOwner, "g-1", MarketLogInput{
 		ObservedAt:    observed,
 		Source:        "reverb",
 		Action:        "sold",
@@ -43,7 +45,7 @@ func TestMarketLogService_AddAndList(t *testing.T) {
 		t.Fatalf("want sold, got %s", created.Action())
 	}
 
-	listed, err := marketSvc.ListMarketLogs(ctx, "g-1")
+	listed, err := marketSvc.ListMarketLogs(ctx, marketLogTestOwner, "g-1")
 	if err != nil {
 		t.Fatal(err)
 	}

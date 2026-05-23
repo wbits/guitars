@@ -48,7 +48,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return corsPreflightResponse(), nil
 	}
 
-	if err := h.auth.Authenticate(ctx, pickHeader(req.Headers, "Authorization")); err != nil {
+	principal, err := h.auth.Authenticate(ctx, pickHeader(req.Headers, "Authorization"))
+	if err != nil {
 		if errors.Is(err, auth.ErrUnauthorized) {
 			return jsonResponse(401, errorResponse{Error: "unauthorized"})
 		}
@@ -60,9 +61,9 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 
 	switch {
 	case path == "/guitar" && method == "GET":
-		return h.list(ctx)
+		return h.list(ctx, principal.UserID)
 	case path == "/guitar" && method == "POST":
-		return h.create(ctx, req.Body)
+		return h.create(ctx, principal.UserID, req.Body)
 	case path == "/upload/presign" && method == "POST":
 		return h.presignUpload(ctx, req.Body)
 	default:
@@ -70,20 +71,20 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 			id := m[1]
 			switch method {
 			case "GET":
-				return h.listMarketLogs(ctx, id)
+				return h.listMarketLogs(ctx, principal.UserID, id)
 			case "POST":
-				return h.createMarketLogs(ctx, id, req.Body)
+				return h.createMarketLogs(ctx, principal.UserID, id, req.Body)
 			}
 		}
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
 			switch method {
 			case "GET":
-				return h.get(ctx, id)
+				return h.get(ctx, principal.UserID, id)
 			case "PUT":
-				return h.update(ctx, id, req.Body)
+				return h.update(ctx, principal.UserID, id, req.Body)
 			case "DELETE":
-				return h.delete(ctx, id)
+				return h.delete(ctx, principal.UserID, id)
 			}
 		}
 		// PUT/DELETE without an id are not part of the contract but produce
@@ -95,8 +96,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	return jsonResponse(404, errorResponse{Error: "not found"})
 }
 
-func (h *Handler) list(ctx context.Context) (events.APIGatewayProxyResponse, error) {
-	guitars, err := h.svc.ListGuitars(ctx)
+func (h *Handler) list(ctx context.Context, ownerID string) (events.APIGatewayProxyResponse, error) {
+	guitars, err := h.svc.ListGuitars(ctx, ownerID)
 	if err != nil {
 		return errorToResponse(err)
 	}
@@ -107,40 +108,40 @@ func (h *Handler) list(ctx context.Context) (events.APIGatewayProxyResponse, err
 	return jsonResponse(200, out)
 }
 
-func (h *Handler) get(ctx context.Context, id string) (events.APIGatewayProxyResponse, error) {
-	g, err := h.svc.GetGuitar(ctx, id)
+func (h *Handler) get(ctx context.Context, ownerID, id string) (events.APIGatewayProxyResponse, error) {
+	g, err := h.svc.GetGuitar(ctx, ownerID, id)
 	if err != nil {
 		return errorToResponse(err)
 	}
 	return jsonResponse(200, toResponse(g))
 }
 
-func (h *Handler) create(ctx context.Context, body string) (events.APIGatewayProxyResponse, error) {
+func (h *Handler) create(ctx context.Context, ownerID, body string) (events.APIGatewayProxyResponse, error) {
 	var req guitarRequest
 	if err := json.Unmarshal([]byte(body), &req); err != nil {
 		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
 	}
-	g, err := h.svc.AddGuitar(ctx, requestToInput(req))
+	g, err := h.svc.AddGuitar(ctx, ownerID, requestToInput(req))
 	if err != nil {
 		return errorToResponse(err)
 	}
 	return jsonResponse(201, toResponse(g))
 }
 
-func (h *Handler) update(ctx context.Context, id, body string) (events.APIGatewayProxyResponse, error) {
+func (h *Handler) update(ctx context.Context, ownerID, id, body string) (events.APIGatewayProxyResponse, error) {
 	var req guitarRequest
 	if err := json.Unmarshal([]byte(body), &req); err != nil {
 		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
 	}
-	g, err := h.svc.UpdateGuitar(ctx, id, requestToInput(req))
+	g, err := h.svc.UpdateGuitar(ctx, ownerID, id, requestToInput(req))
 	if err != nil {
 		return errorToResponse(err)
 	}
 	return jsonResponse(200, toResponse(g))
 }
 
-func (h *Handler) delete(ctx context.Context, id string) (events.APIGatewayProxyResponse, error) {
-	if err := h.svc.DeleteGuitar(ctx, id); err != nil {
+func (h *Handler) delete(ctx context.Context, ownerID, id string) (events.APIGatewayProxyResponse, error) {
+	if err := h.svc.DeleteGuitar(ctx, ownerID, id); err != nil {
 		return errorToResponse(err)
 	}
 	return events.APIGatewayProxyResponse{StatusCode: 204, Headers: responseHeaders(nil)}, nil

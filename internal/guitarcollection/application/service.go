@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"strings"
 
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
@@ -27,13 +28,18 @@ func NewService(repo domain.Repository, ids IDGenerator) *Service {
 
 // AddGuitar creates a new guitar from the given input, persists it and returns
 // the resulting aggregate. The id is assigned by the supplied IDGenerator.
-func (s *Service) AddGuitar(ctx context.Context, in GuitarInput) (*domain.Guitar, error) {
+func (s *Service) AddGuitar(ctx context.Context, ownerID string, in GuitarInput) (*domain.Guitar, error) {
+	ownerID = strings.TrimSpace(ownerID)
+	if ownerID == "" {
+		return nil, domain.InvalidField("owner", "is required")
+	}
 	price, err := domain.NewMoney(in.PriceAmount, domain.Currency(in.PriceCurrency))
 	if err != nil {
 		return nil, err
 	}
 	g, err := domain.NewGuitar(domain.GuitarProps{
 		ID:                s.ids.NewID(),
+		Owner:             ownerID,
 		SerialNumber:      in.SerialNumber,
 		Pictures:          in.Pictures,
 		CoverPictureIndex: in.CoverPictureIndex,
@@ -54,17 +60,22 @@ func (s *Service) AddGuitar(ctx context.Context, in GuitarInput) (*domain.Guitar
 
 // UpdateGuitar applies the given input to the guitar identified by id. Returns
 // domain.ErrGuitarNotFound when no such guitar exists, or a ValidationError
-// when the input violates an invariant.
-func (s *Service) UpdateGuitar(ctx context.Context, id string, in GuitarInput) (*domain.Guitar, error) {
+// when the input violates an invariant. Guitars without an owner are assigned
+// to the caller on update.
+func (s *Service) UpdateGuitar(ctx context.Context, ownerID, id string, in GuitarInput) (*domain.Guitar, error) {
 	g, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if !guitarVisibleTo(g, ownerID) {
+		return nil, domain.ErrGuitarNotFound
 	}
 	price, err := domain.NewMoney(in.PriceAmount, domain.Currency(in.PriceCurrency))
 	if err != nil {
 		return nil, err
 	}
 	if err := g.Update(domain.GuitarProps{
+		Owner:             resolveOwnerForUpdate(g, ownerID),
 		SerialNumber:      in.SerialNumber,
 		Pictures:          in.Pictures,
 		CoverPictureIndex: in.CoverPictureIndex,
@@ -82,17 +93,31 @@ func (s *Service) UpdateGuitar(ctx context.Context, id string, in GuitarInput) (
 	return g, nil
 }
 
-// GetGuitar returns a single guitar by id.
-func (s *Service) GetGuitar(ctx context.Context, id string) (*domain.Guitar, error) {
-	return s.repo.FindByID(ctx, id)
+// GetGuitar returns a single guitar by id when visible to the caller.
+func (s *Service) GetGuitar(ctx context.Context, ownerID, id string) (*domain.Guitar, error) {
+	g, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !guitarVisibleTo(g, ownerID) {
+		return nil, domain.ErrGuitarNotFound
+	}
+	return g, nil
 }
 
-// ListGuitars returns all guitars in the collection.
-func (s *Service) ListGuitars(ctx context.Context) ([]*domain.Guitar, error) {
-	return s.repo.FindAll(ctx)
+// ListGuitars returns guitars owned by the caller.
+func (s *Service) ListGuitars(ctx context.Context, ownerID string) ([]*domain.Guitar, error) {
+	return s.repo.FindByOwner(ctx, strings.TrimSpace(ownerID))
 }
 
-// DeleteGuitar removes the guitar with the given id.
-func (s *Service) DeleteGuitar(ctx context.Context, id string) error {
+// DeleteGuitar removes the guitar with the given id when visible to the caller.
+func (s *Service) DeleteGuitar(ctx context.Context, ownerID, id string) error {
+	g, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !guitarVisibleTo(g, ownerID) {
+		return domain.ErrGuitarNotFound
+	}
 	return s.repo.Delete(ctx, id)
 }

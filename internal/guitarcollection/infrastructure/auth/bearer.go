@@ -9,6 +9,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -22,9 +23,10 @@ import (
 // bearer token.
 var ErrUnauthorized = errors.New("unauthorized")
 
-// Authenticator validates an HTTP Authorization header value.
+// Authenticator validates an HTTP Authorization header value and returns the
+// authenticated caller.
 type Authenticator interface {
-	Authenticate(ctx context.Context, authorizationHeader string) error
+	Authenticate(ctx context.Context, authorizationHeader string) (Principal, error)
 }
 
 // TokenLoader abstracts how the expected bearer token is fetched. Production
@@ -59,25 +61,24 @@ func NewBearerAuthenticator(loader TokenLoader, ttl time.Duration) *BearerAuthen
 	return &BearerAuthenticator{loader: loader, cacheTTL: ttl}
 }
 
-// Authenticate validates the supplied Authorization header. It returns nil on
-// success and ErrUnauthorized otherwise (wrapping is not used here to avoid
-// leaking the expected token through error messages).
-func (a *BearerAuthenticator) Authenticate(ctx context.Context, header string) error {
+// Authenticate validates the supplied Authorization header. It returns the
+// local-dev principal on success and ErrUnauthorized otherwise.
+func (a *BearerAuthenticator) Authenticate(ctx context.Context, header string) (Principal, error) {
 	supplied, ok := extractBearer(header)
 	if !ok {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	expected, err := a.getToken(ctx)
 	if err != nil {
-		return fmt.Errorf("load bearer token: %w", err)
+		return Principal{}, fmt.Errorf("load bearer token: %w", err)
 	}
 	if expected == "" {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	if subtle.ConstantTimeCompare([]byte(expected), []byte(supplied)) != 1 {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
-	return nil
+	return Principal{UserID: bearerUserID()}, nil
 }
 
 func (a *BearerAuthenticator) getToken(ctx context.Context) (string, error) {
@@ -145,4 +146,11 @@ func (l *SecretsManagerLoader) Load(ctx context.Context) (string, error) {
 		return "", errors.New("secret has no string value")
 	}
 	return strings.TrimSpace(*out.SecretString), nil
+}
+
+func bearerUserID() string {
+	if id := strings.TrimSpace(os.Getenv("LOCAL_DEV_USER_ID")); id != "" {
+		return id
+	}
+	return "local-dev-user"
 }

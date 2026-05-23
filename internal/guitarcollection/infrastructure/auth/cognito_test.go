@@ -50,8 +50,12 @@ func TestCognitoJWTAuthenticator_AcceptsAccessToken(t *testing.T) {
 		"exp":        time.Now().Add(time.Hour).Unix(),
 		"iat":        time.Now().Unix(),
 	})
-	if err := authn.Authenticate(context.Background(), "Bearer "+token); err != nil {
+	p, err := authn.Authenticate(context.Background(), "Bearer "+token)
+	if err != nil {
 		t.Fatalf("expected valid access token, got %v", err)
+	}
+	if p.UserID != "user-123" {
+		t.Fatalf("want user-123, got %q", p.UserID)
 	}
 }
 
@@ -65,8 +69,12 @@ func TestCognitoJWTAuthenticator_AcceptsIDToken(t *testing.T) {
 		"exp":       time.Now().Add(time.Hour).Unix(),
 		"iat":       time.Now().Unix(),
 	})
-	if err := authn.Authenticate(context.Background(), "Bearer "+token); err != nil {
+	p, err := authn.Authenticate(context.Background(), "Bearer "+token)
+	if err != nil {
 		t.Fatalf("expected valid id token, got %v", err)
+	}
+	if p.UserID != "user-123" {
+		t.Fatalf("want user-123, got %q", p.UserID)
 	}
 }
 
@@ -78,7 +86,7 @@ func TestCognitoJWTAuthenticator_RejectsWrongClient(t *testing.T) {
 		"client_id": "other-client",
 		"exp":       time.Now().Add(time.Hour).Unix(),
 	})
-	err := authn.Authenticate(context.Background(), "Bearer "+token)
+	_, err := authn.Authenticate(context.Background(), "Bearer "+token)
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}
@@ -92,7 +100,7 @@ func TestCognitoJWTAuthenticator_RejectsExpiredToken(t *testing.T) {
 		"client_id": "test-client-id",
 		"exp":       time.Now().Add(-time.Hour).Unix(),
 	})
-	err := authn.Authenticate(context.Background(), "Bearer "+token)
+	_, err := authn.Authenticate(context.Background(), "Bearer "+token)
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}
@@ -100,7 +108,7 @@ func TestCognitoJWTAuthenticator_RejectsExpiredToken(t *testing.T) {
 
 func TestCognitoJWTAuthenticator_RejectsSharedSecretToken(t *testing.T) {
 	authn, _ := newTestCognitoAuthenticator(t)
-	err := authn.Authenticate(context.Background(), "Bearer local-dev-token")
+	_, err := authn.Authenticate(context.Background(), "Bearer local-dev-token")
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}

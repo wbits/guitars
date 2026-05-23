@@ -9,7 +9,7 @@ All endpoints are protected by a shared bearer token. Send it as
 
 | Method | Path             | Description                       |
 | ------ | ---------------- | --------------------------------- |
-| GET    | `/guitar`        | list every guitar in the collection |
+| GET    | `/guitar`        | list guitars owned by the authenticated user |
 | GET    | `/guitar/{id}`   | retrieve a single guitar          |
 | POST   | `/guitar`        | add a new guitar                  |
 | PUT    | `/guitar/{id}`   | replace an existing guitar        |
@@ -29,6 +29,11 @@ The JSON body for POST/PUT looks like:
   "priceCurrency": "EUR"
 }
 ```
+
+Responses include `"owner"` (the Cognito user id). Clients do not send `owner`
+in POST/PUT bodies; the API assigns it from the authenticated user. Listing
+returns only guitars owned by the caller. Legacy guitars without an owner are
+hidden from the list until the next update, which backfills ownership.
 
 Prices are stored in **minor units** (cents). `199900` therefore means
 EUR&nbsp;1999,00. The only currencies currently accepted are `EUR` and `USD`.

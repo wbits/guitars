@@ -53,36 +53,40 @@ func CognitoIssuer(region, userPoolID string) string {
 }
 
 // Authenticate validates a Cognito access or ID token supplied as a bearer
-// token.
-func (a *CognitoJWTAuthenticator) Authenticate(_ context.Context, header string) error {
+// token and returns the caller's Cognito sub as UserID.
+func (a *CognitoJWTAuthenticator) Authenticate(_ context.Context, header string) (Principal, error) {
 	raw, ok := extractBearer(header)
 	if !ok {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	parsed, err := jwt.Parse(raw, a.keyFunc, jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}))
 	if err != nil || !parsed.Valid {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	claims, ok := parsed.Claims.(jwt.MapClaims)
 	if !ok {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	if !claimMatches(claims, "iss", a.issuer) {
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
 	switch tokenUse, _ := claims["token_use"].(string); tokenUse {
 	case "access":
 		if !claimMatches(claims, "client_id", a.clientID) {
-			return ErrUnauthorized
+			return Principal{}, ErrUnauthorized
 		}
 	case "id":
 		if !claimMatchesAudience(claims, a.clientID) {
-			return ErrUnauthorized
+			return Principal{}, ErrUnauthorized
 		}
 	default:
-		return ErrUnauthorized
+		return Principal{}, ErrUnauthorized
 	}
-	return nil
+	sub, ok := claims["sub"].(string)
+	if !ok || strings.TrimSpace(sub) == "" {
+		return Principal{}, ErrUnauthorized
+	}
+	return Principal{UserID: strings.TrimSpace(sub)}, nil
 }
 
 func claimMatches(claims jwt.MapClaims, name, expected string) bool {

@@ -11,8 +11,8 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 )
 
-func (h *Handler) listMarketLogs(ctx context.Context, guitarID string) (events.APIGatewayProxyResponse, error) {
-	logs, err := h.marketLogs.ListMarketLogs(ctx, guitarID)
+func (h *Handler) listMarketLogs(ctx context.Context, ownerID, guitarID string) (events.APIGatewayProxyResponse, error) {
+	logs, err := h.marketLogs.ListMarketLogs(ctx, ownerID, guitarID)
 	if err != nil {
 		return errorToResponse(err)
 	}
@@ -23,7 +23,7 @@ func (h *Handler) listMarketLogs(ctx context.Context, guitarID string) (events.A
 	return jsonResponse(200, out)
 }
 
-func (h *Handler) createMarketLogs(ctx context.Context, guitarID, body string) (events.APIGatewayProxyResponse, error) {
+func (h *Handler) createMarketLogs(ctx context.Context, ownerID, guitarID, body string) (events.APIGatewayProxyResponse, error) {
 	reqs, err := decodeMarketLogRequests(body)
 	if err != nil {
 		return jsonResponse(400, errorResponse{Error: err.Error()})
@@ -39,7 +39,7 @@ func (h *Handler) createMarketLogs(ctx context.Context, guitarID, body string) (
 		}
 		inputs = append(inputs, input)
 	}
-	logs, err := h.marketLogs.AddMarketLogs(ctx, guitarID, inputs)
+	logs, err := h.marketLogs.AddMarketLogs(ctx, ownerID, guitarID, inputs)
 	if err != nil {
 		return errorToResponse(err)
 	}

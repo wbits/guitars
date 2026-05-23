@@ -15,9 +15,8 @@ type Repository interface {
 	// FindByID returns the guitar with the given id, or ErrGuitarNotFound.
 	FindByID(ctx context.Context, id string) (*Guitar, error)
 
-	// FindAll returns every guitar in the collection. For a personal
-	// collection the cardinality is small, so no pagination is exposed yet.
-	FindAll(ctx context.Context) ([]*Guitar, error)
+	// FindByOwner returns guitars owned by the given user id.
+	FindByOwner(ctx context.Context, owner string) ([]*Guitar, error)
 
 	// Delete removes the guitar with the given id. Deleting an unknown id
 	// returns ErrGuitarNotFound so callers can produce the correct 404.

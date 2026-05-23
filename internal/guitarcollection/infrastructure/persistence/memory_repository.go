@@ -40,14 +40,16 @@ func (r *MemoryRepository) FindByID(_ context.Context, id string) (*domain.Guita
 	return g, nil
 }
 
-// FindAll implements domain.Repository. Results are sorted by id for a stable
+// FindByOwner implements domain.Repository. Results are sorted by id for a stable
 // API response (this matters for clients and for tests).
-func (r *MemoryRepository) FindAll(_ context.Context) ([]*domain.Guitar, error) {
+func (r *MemoryRepository) FindByOwner(_ context.Context, owner string) ([]*domain.Guitar, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	out := make([]*domain.Guitar, 0, len(r.guitars))
+	out := make([]*domain.Guitar, 0)
 	for _, g := range r.guitars {
-		out = append(out, g)
+		if g.Owner() == owner {
+			out = append(out, g)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID() < out[j].ID() })
 	return out, nil

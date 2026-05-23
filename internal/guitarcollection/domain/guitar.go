@@ -19,6 +19,7 @@ const minBuildYear = 1800
 // guaranteed to be valid.
 type Guitar struct {
 	id                string
+	owner             string
 	serialNumber      string
 	pictures          []string
 	coverPictureIndex int
@@ -33,6 +34,7 @@ type Guitar struct {
 // Using a struct keeps the constructor stable as fields are added.
 type GuitarProps struct {
 	ID                string
+	Owner             string
 	SerialNumber      string
 	Pictures          []string
 	CoverPictureIndex int
@@ -76,6 +78,7 @@ func NewGuitar(p GuitarProps) (*Guitar, error) {
 
 	return &Guitar{
 		id:                strings.TrimSpace(p.ID),
+		owner:             strings.TrimSpace(p.Owner),
 		serialNumber:      strings.TrimSpace(p.SerialNumber),
 		pictures:          pictures,
 		coverPictureIndex: coverIndex,
@@ -142,6 +145,7 @@ func itoa(i int) string {
 // --- Getters (the aggregate exposes no setters; mutation is through methods) ---
 
 func (g *Guitar) ID() string           { return g.id }
+func (g *Guitar) Owner() string        { return g.owner }
 func (g *Guitar) SerialNumber() string { return g.serialNumber }
 func (g *Guitar) Pictures() []string {
 	out := make([]string, len(g.pictures))
@@ -160,6 +164,9 @@ func (g *Guitar) Price() Money        { return g.price }
 // apply, so callers receive a *ValidationError if any invariant is violated.
 func (g *Guitar) Update(p GuitarProps) error {
 	p.ID = g.id
+	if strings.TrimSpace(p.Owner) == "" {
+		p.Owner = g.owner
+	}
 	updated, err := NewGuitar(p)
 	if err != nil {
 		return err

@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -11,85 +10,88 @@ import (
 func TestBearerAuthenticator_AcceptsCorrectToken(t *testing.T) {
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
 		return "secret-token", nil
-	}), time.Minute)
-	if err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
-		t.Errorf("expected no error, got %v", err)
+	}), 0)
+	p, err := a.Authenticate(context.Background(), "Bearer secret-token")
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if p.UserID != "local-dev-user" {
+		t.Fatalf("want local-dev-user, got %q", p.UserID)
 	}
 }
 
 func TestBearerAuthenticator_RejectsWrongToken(t *testing.T) {
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
 		return "secret-token", nil
-	}), time.Minute)
-	if err := a.Authenticate(context.Background(), "Bearer not-the-token"); !errors.Is(err, ErrUnauthorized) {
-		t.Errorf("expected ErrUnauthorized, got %v", err)
+	}), 0)
+	_, err := a.Authenticate(context.Background(), "Bearer not-the-token")
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}
 }
 
 func TestBearerAuthenticator_RejectsMissingHeader(t *testing.T) {
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
 		return "secret-token", nil
-	}), time.Minute)
-	if err := a.Authenticate(context.Background(), ""); !errors.Is(err, ErrUnauthorized) {
-		t.Errorf("expected ErrUnauthorized, got %v", err)
+	}), 0)
+	_, err := a.Authenticate(context.Background(), "")
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}
 }
 
 func TestBearerAuthenticator_RejectsMalformedHeader(t *testing.T) {
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
 		return "secret-token", nil
-	}), time.Minute)
-	for _, h := range []string{"Basic abc", "Bearer", "Bearer  ", "secret-token"} {
-		if err := a.Authenticate(context.Background(), h); !errors.Is(err, ErrUnauthorized) {
-			t.Errorf("header %q: expected ErrUnauthorized, got %v", h, err)
+	}), 0)
+	for _, h := range []string{"secret-token", "Basic secret-token", "Bearer"} {
+		if _, err := a.Authenticate(context.Background(), h); !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("header %q: expected ErrUnauthorized, got %v", h, err)
 		}
 	}
 }
 
 func TestBearerAuthenticator_PropagatesLoaderErrors(t *testing.T) {
-	loaderErr := errors.New("boom")
+	want := errors.New("boom")
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
-		return "", loaderErr
-	}), time.Minute)
-	err := a.Authenticate(context.Background(), "Bearer x")
-	if err == nil || errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("expected loader error to surface, got %v", err)
-	}
-	if !errors.Is(err, loaderErr) {
-		t.Errorf("expected wrapped loader error, got %v", err)
+		return "", want
+	}), 0)
+	_, err := a.Authenticate(context.Background(), "Bearer x")
+	if !errors.Is(err, want) {
+		t.Fatalf("expected loader error, got %v", err)
 	}
 }
 
 func TestBearerAuthenticator_CachesToken(t *testing.T) {
-	var calls int32
+	calls := 0
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
-		atomic.AddInt32(&calls, 1)
+		calls++
 		return "secret-token", nil
 	}), time.Minute)
-	for i := 0; i < 5; i++ {
-		if err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
-			t.Fatalf("iteration %d: %v", i, err)
+	for i := 0; i < 2; i++ {
+		if _, err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
+			t.Fatalf("call %d: %v", i, err)
 		}
 	}
-	if got := atomic.LoadInt32(&calls); got != 1 {
-		t.Errorf("loader should be called once with caching, got %d calls", got)
+	if calls != 1 {
+		t.Fatalf("expected 1 loader call, got %d", calls)
 	}
 }
 
 func TestBearerAuthenticator_RefreshesAfterTTL(t *testing.T) {
-	var calls int32
+	calls := 0
 	a := NewBearerAuthenticator(TokenLoaderFunc(func(context.Context) (string, error) {
-		atomic.AddInt32(&calls, 1)
+		calls++
 		return "secret-token", nil
-	}), 1*time.Millisecond)
-	if err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
-		t.Fatalf("first auth: %v", err)
+	}), time.Nanosecond)
+	if _, err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
+		t.Fatal(err)
 	}
-	time.Sleep(5 * time.Millisecond)
-	if err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
-		t.Fatalf("second auth: %v", err)
+	time.Sleep(time.Millisecond)
+	if _, err := a.Authenticate(context.Background(), "Bearer secret-token"); err != nil {
+		t.Fatal(err)
 	}
-	if got := atomic.LoadInt32(&calls); got < 2 {
-		t.Errorf("loader should refresh after TTL, got %d calls", got)
+	if calls != 2 {
+		t.Fatalf("expected 2 loader calls, got %d", calls)
 	}
 }

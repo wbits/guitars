@@ -26,8 +26,8 @@ func NewMarketLogService(guitars domain.Repository, marketLogs domain.MarketLogR
 }
 
 // AddMarketLog records a single marketplace observation for a guitar.
-func (s *MarketLogService) AddMarketLog(ctx context.Context, guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
-	if _, err := s.guitars.FindByID(ctx, guitarID); err != nil {
+func (s *MarketLogService) AddMarketLog(ctx context.Context, ownerID, guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
+	if err := s.ensureGuitarAccess(ctx, ownerID, guitarID); err != nil {
 		return nil, err
 	}
 	log, err := s.buildMarketLog(guitarID, in)
@@ -41,8 +41,8 @@ func (s *MarketLogService) AddMarketLog(ctx context.Context, guitarID string, in
 }
 
 // AddMarketLogs records multiple observations for a guitar in one call.
-func (s *MarketLogService) AddMarketLogs(ctx context.Context, guitarID string, inputs []MarketLogInput) ([]*domain.MarketLog, error) {
-	if _, err := s.guitars.FindByID(ctx, guitarID); err != nil {
+func (s *MarketLogService) AddMarketLogs(ctx context.Context, ownerID, guitarID string, inputs []MarketLogInput) ([]*domain.MarketLog, error) {
+	if err := s.ensureGuitarAccess(ctx, ownerID, guitarID); err != nil {
 		return nil, err
 	}
 	out := make([]*domain.MarketLog, 0, len(inputs))
@@ -60,11 +60,22 @@ func (s *MarketLogService) AddMarketLogs(ctx context.Context, guitarID string, i
 }
 
 // ListMarketLogs returns observations for a guitar, newest first.
-func (s *MarketLogService) ListMarketLogs(ctx context.Context, guitarID string) ([]*domain.MarketLog, error) {
-	if _, err := s.guitars.FindByID(ctx, guitarID); err != nil {
+func (s *MarketLogService) ListMarketLogs(ctx context.Context, ownerID, guitarID string) ([]*domain.MarketLog, error) {
+	if err := s.ensureGuitarAccess(ctx, ownerID, guitarID); err != nil {
 		return nil, err
 	}
 	return s.marketLogs.FindByGuitarID(ctx, guitarID)
+}
+
+func (s *MarketLogService) ensureGuitarAccess(ctx context.Context, ownerID, guitarID string) error {
+	g, err := s.guitars.FindByID(ctx, guitarID)
+	if err != nil {
+		return err
+	}
+	if !guitarVisibleTo(g, ownerID) {
+		return domain.ErrGuitarNotFound
+	}
+	return nil
 }
 
 func (s *MarketLogService) buildMarketLog(guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
