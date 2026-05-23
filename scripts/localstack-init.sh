@@ -8,6 +8,7 @@ ENDPOINT="${AWS_ENDPOINT_URL:-http://localhost:4566}"
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 TABLE_NAME="${GUITARS_TABLE:-Guitars}"
 MARKET_LOGS_TABLE="${MARKET_LOGS_TABLE:-MarketLogs}"
+USER_PROFILES_TABLE="${USER_PROFILES_TABLE:-UserProfiles}"
 SECRET_NAME="${BEARER_SECRET_ID:-guitars/bearer-token}"
 BEARER_TOKEN="${BEARER_TOKEN:-local-dev-token}"
 IMAGES_BUCKET="${IMAGES_BUCKET:-guitars-local}"
@@ -38,6 +39,25 @@ aws --endpoint-url="${ENDPOINT}" dynamodb create-table \
       "KeySchema": [
         {"AttributeName": "guitarId", "KeyType": "HASH"},
         {"AttributeName": "observedAt", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "ALL"}
+    }
+  ]' \
+  --billing-mode PAY_PER_REQUEST \
+  >/dev/null 2>&1 || echo "  (table already exists)"
+
+echo "Creating DynamoDB table ${USER_PROFILES_TABLE} ..."
+aws --endpoint-url="${ENDPOINT}" dynamodb create-table \
+  --table-name "${USER_PROFILES_TABLE}" \
+  --attribute-definitions \
+      AttributeName=userId,AttributeType=S \
+      AttributeName=username,AttributeType=S \
+  --key-schema AttributeName=userId,KeyType=HASH \
+  --global-secondary-indexes '[
+    {
+      "IndexName": "usernameIndex",
+      "KeySchema": [
+        {"AttributeName": "username", "KeyType": "HASH"}
       ],
       "Projection": {"ProjectionType": "ALL"}
     }
@@ -82,6 +102,7 @@ aws --endpoint-url="${ENDPOINT}" s3api put-bucket-cors \
 echo "LocalStack init complete."
 echo "  table : ${TABLE_NAME}"
 echo "  market: ${MARKET_LOGS_TABLE}"
+echo "  profiles: ${USER_PROFILES_TABLE}"
 echo "  secret: ${SECRET_NAME}"
 echo "  token : ${BEARER_TOKEN}"
 echo "  bucket: ${IMAGES_BUCKET}"

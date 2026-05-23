@@ -6,7 +6,11 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
 
-func guitarVisibleTo(g *domain.Guitar, userID string) bool {
+func guitarReadableBy(_ *domain.Guitar, _ string) bool {
+	return true
+}
+
+func guitarWritableBy(g *domain.Guitar, userID string) bool {
 	owner := g.Owner()
 	if owner == "" {
 		return true

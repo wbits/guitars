@@ -16,6 +16,8 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/storage"
+	profileapp "github.com/wbits/guitars/internal/userprofile/application"
+	profiledomain "github.com/wbits/guitars/internal/userprofile/domain"
 )
 
 // Handler routes API Gateway proxy requests to the GuitarCollection
@@ -28,19 +30,22 @@ import (
 type Handler struct {
 	svc        *application.Service
 	marketLogs *application.MarketLogService
+	profiles   *profileapp.Service
 	auth       auth.Authenticator
 	presigner  *storage.Presigner
 }
 
 // NewHandler constructs a Handler wired to the supplied services and
 // authenticator. Both service arguments are required. presigner may be nil
-// when image uploads are not configured.
-func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, a auth.Authenticator, presigner *storage.Presigner) *Handler {
-	return &Handler{svc: svc, marketLogs: marketLogs, auth: a, presigner: presigner}
+// when image uploads are not configured. profiles may be nil to disable
+// profile endpoints.
+func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner) *Handler {
+	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, auth: a, presigner: presigner}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
 var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
+var userCollectionPath = regexp.MustCompile(`^/collections/([^/]+)/guitar/?$`)
 
 // Handle is the entrypoint suitable for lambda.Start.
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -60,6 +65,12 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	path := normalisePath(req.Path)
 
 	switch {
+	case path == "/me" && method == "GET":
+		return h.me(ctx, principal)
+	case path == "/me" && method == "PATCH":
+		return h.patchMe(ctx, principal, req.Body)
+	case path == "/collections" && method == "GET":
+		return h.listCollections(ctx)
 	case path == "/guitar" && method == "GET":
 		return h.list(ctx, principal.UserID)
 	case path == "/guitar" && method == "POST":
@@ -67,6 +78,11 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	case path == "/upload/presign" && method == "POST":
 		return h.presignUpload(ctx, req.Body)
 	default:
+		if m := userCollectionPath.FindStringSubmatch(path); m != nil {
+			if method == "GET" {
+				return h.listUserCollection(ctx, m[1])
+			}
+		}
 		if m := guitarMarketLogPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
 			switch method {
@@ -94,6 +110,78 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		}
 	}
 	return jsonResponse(404, errorResponse{Error: "not found"})
+}
+
+func (h *Handler) me(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
+	if h.profiles == nil {
+		return jsonResponse(200, meResponse{UserID: principal.UserID, Email: principal.Email, DisplayName: profileapp.DisplayNameForUser(principal.UserID, nil)})
+	}
+	profile, err := h.profiles.GetProfile(ctx, principal.UserID, principal.Email)
+	if err != nil {
+		return profileErrorToResponse(err)
+	}
+	return jsonResponse(200, toMeResponse(profile))
+}
+
+func (h *Handler) patchMe(ctx context.Context, principal auth.Principal, body string) (events.APIGatewayProxyResponse, error) {
+	if h.profiles == nil {
+		return jsonResponse(503, errorResponse{Error: "profiles are not configured"})
+	}
+	var req profilePatchRequest
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
+	}
+	profile, err := h.profiles.UpdateUsername(ctx, principal.UserID, principal.Email, req.Username)
+	if err != nil {
+		return profileErrorToResponse(err)
+	}
+	return jsonResponse(200, toMeResponse(profile))
+}
+
+func (h *Handler) listCollections(ctx context.Context) (events.APIGatewayProxyResponse, error) {
+	owners, err := h.svc.ListCollectionOwners(ctx)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	var profileRecords map[string]*profiledomain.Profile
+	if h.profiles != nil {
+		profileRecords, err = h.profiles.GetProfilesByUserIDs(ctx, owners)
+		if err != nil {
+			return profileErrorToResponse(err)
+		}
+	}
+	out := make([]collectionOwnerResponse, 0, len(owners))
+	for _, ownerID := range owners {
+		guitars, err := h.svc.ListUserGuitars(ctx, ownerID)
+		if err != nil {
+			return errorToResponse(err)
+		}
+		resp := collectionOwnerResponse{
+			UserID:      ownerID,
+			GuitarCount: len(guitars),
+		}
+		if profile, ok := profileRecords[ownerID]; ok {
+			resp.Username = profile.Username()
+			resp.Email = profile.Email()
+			resp.DisplayName = profile.DisplayName()
+		} else {
+			resp.DisplayName = profileapp.DisplayNameForUser(ownerID, nil)
+		}
+		out = append(out, resp)
+	}
+	return jsonResponse(200, out)
+}
+
+func (h *Handler) listUserCollection(ctx context.Context, userID string) (events.APIGatewayProxyResponse, error) {
+	guitars, err := h.svc.ListUserGuitars(ctx, userID)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	out := make([]guitarResponse, 0, len(guitars))
+	for _, g := range guitars {
+		out = append(out, toResponse(g))
+	}
+	return jsonResponse(200, out)
 }
 
 func (h *Handler) list(ctx context.Context, ownerID string) (events.APIGatewayProxyResponse, error) {
@@ -193,6 +281,17 @@ func errorToResponse(err error) (events.APIGatewayProxyResponse, error) {
 	case errors.Is(err, domain.ErrGuitarNotFound):
 		return jsonResponse(404, errorResponse{Error: "guitar not found"})
 	case domain.IsValidationError(err):
+		return jsonResponse(400, errorResponse{Error: err.Error()})
+	default:
+		return jsonResponse(500, errorResponse{Error: "internal server error"})
+	}
+}
+
+func profileErrorToResponse(err error) (events.APIGatewayProxyResponse, error) {
+	switch {
+	case profileapp.IsUsernameTaken(err):
+		return jsonResponse(409, errorResponse{Error: "username is already taken"})
+	case profileapp.IsValidationError(err):
 		return jsonResponse(400, errorResponse{Error: err.Error()})
 	default:
 		return jsonResponse(500, errorResponse{Error: "internal server error"})

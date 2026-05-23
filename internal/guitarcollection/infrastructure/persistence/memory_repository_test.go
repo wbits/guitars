@@ -65,6 +65,22 @@ func TestMemoryRepository_FindByOwner_SortedByID(t *testing.T) {
 	}
 }
 
+func TestMemoryRepository_FindDistinctOwners(t *testing.T) {
+	r := NewMemoryRepository()
+	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender", "user-1"))
+	_ = r.Save(context.Background(), mustGuitar(t, "g-2", "Gibson", "user-1"))
+	_ = r.Save(context.Background(), mustGuitar(t, "g-3", "Gretsch", "user-2"))
+	legacy := mustGuitar(t, "g-4", "Yamaha", "")
+	_ = r.Save(context.Background(), legacy)
+	owners, err := r.FindDistinctOwners(context.Background())
+	if err != nil {
+		t.Fatalf("find distinct owners: %v", err)
+	}
+	if len(owners) != 2 || owners[0] != "user-1" || owners[1] != "user-2" {
+		t.Errorf("expected user-1 and user-2, got %v", owners)
+	}
+}
+
 func TestMemoryRepository_Delete(t *testing.T) {
 	r := NewMemoryRepository()
 	_ = r.Save(context.Background(), mustGuitar(t, "g-1", "Fender", "user-1"))

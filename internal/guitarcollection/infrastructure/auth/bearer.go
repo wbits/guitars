@@ -78,7 +78,7 @@ func (a *BearerAuthenticator) Authenticate(ctx context.Context, header string) (
 	if subtle.ConstantTimeCompare([]byte(expected), []byte(supplied)) != 1 {
 		return Principal{}, ErrUnauthorized
 	}
-	return Principal{UserID: bearerUserID()}, nil
+	return Principal{UserID: bearerUserID(), Email: bearerEmail()}, nil
 }
 
 func (a *BearerAuthenticator) getToken(ctx context.Context) (string, error) {
@@ -146,6 +146,13 @@ func (l *SecretsManagerLoader) Load(ctx context.Context) (string, error) {
 		return "", errors.New("secret has no string value")
 	}
 	return strings.TrimSpace(*out.SecretString), nil
+}
+
+func bearerEmail() string {
+	if email := strings.TrimSpace(os.Getenv("LOCAL_DEV_EMAIL")); email != "" {
+		return email
+	}
+	return "local-dev@example.com"
 }
 
 func bearerUserID() string {

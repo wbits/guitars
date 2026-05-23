@@ -67,7 +67,7 @@ func (s *Service) UpdateGuitar(ctx context.Context, ownerID, id string, in Guita
 	if err != nil {
 		return nil, err
 	}
-	if !guitarVisibleTo(g, ownerID) {
+	if !guitarWritableBy(g, ownerID) {
 		return nil, domain.ErrGuitarNotFound
 	}
 	price, err := domain.NewMoney(in.PriceAmount, domain.Currency(in.PriceCurrency))
@@ -99,7 +99,7 @@ func (s *Service) GetGuitar(ctx context.Context, ownerID, id string) (*domain.Gu
 	if err != nil {
 		return nil, err
 	}
-	if !guitarVisibleTo(g, ownerID) {
+	if !guitarReadableBy(g, ownerID) {
 		return nil, domain.ErrGuitarNotFound
 	}
 	return g, nil
@@ -110,13 +110,27 @@ func (s *Service) ListGuitars(ctx context.Context, ownerID string) ([]*domain.Gu
 	return s.repo.FindByOwner(ctx, strings.TrimSpace(ownerID))
 }
 
-// DeleteGuitar removes the guitar with the given id when visible to the caller.
+// ListUserGuitars returns guitars owned by the given user id.
+func (s *Service) ListUserGuitars(ctx context.Context, userID string) ([]*domain.Guitar, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, domain.InvalidField("userId", "is required")
+	}
+	return s.repo.FindByOwner(ctx, userID)
+}
+
+// ListCollectionOwners returns every user id that owns at least one guitar.
+func (s *Service) ListCollectionOwners(ctx context.Context) ([]string, error) {
+	return s.repo.FindDistinctOwners(ctx)
+}
+
+// DeleteGuitar removes the guitar with the given id when the caller may modify it.
 func (s *Service) DeleteGuitar(ctx context.Context, ownerID, id string) error {
 	g, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	if !guitarVisibleTo(g, ownerID) {
+	if !guitarWritableBy(g, ownerID) {
 		return domain.ErrGuitarNotFound
 	}
 	return s.repo.Delete(ctx, id)

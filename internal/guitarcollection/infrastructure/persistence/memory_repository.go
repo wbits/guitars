@@ -2,8 +2,9 @@ package persistence
 
 import (
 	"context"
-	"sort"
 	"sync"
+	"sort"
+	"strings"
 
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
@@ -52,6 +53,24 @@ func (r *MemoryRepository) FindByOwner(_ context.Context, owner string) ([]*doma
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID() < out[j].ID() })
+	return out, nil
+}
+
+// FindDistinctOwners implements domain.Repository.
+func (r *MemoryRepository) FindDistinctOwners(_ context.Context) ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	seen := map[string]struct{}{}
+	for _, g := range r.guitars {
+		if owner := strings.TrimSpace(g.Owner()); owner != "" {
+			seen[owner] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for owner := range seen {
+		out = append(out, owner)
+	}
+	sort.Strings(out)
 	return out, nil
 }
 

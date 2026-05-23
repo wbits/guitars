@@ -23,6 +23,22 @@ func (r *fakeRepo) FindByOwner(_ context.Context, owner string) ([]*domain.Guita
 	return out, nil
 }
 
+func (r *fakeRepo) FindDistinctOwners(_ context.Context) ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	seen := map[string]struct{}{}
+	for _, g := range r.guitars {
+		if owner := g.Owner(); owner != "" {
+			seen[owner] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for owner := range seen {
+		out = append(out, owner)
+	}
+	return out, nil
+}
+
 func TestService_AddGuitar_PersistsAndAssignsID(t *testing.T) {
 	repo := newFakeRepo()
 	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1"}})
@@ -77,13 +93,28 @@ func TestService_GetGuitar_NotFound(t *testing.T) {
 	}
 }
 
-func TestService_GetGuitar_RejectsOtherOwners(t *testing.T) {
+func TestService_GetGuitar_AllowsOtherOwners(t *testing.T) {
 	repo := newFakeRepo()
 	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1"}})
 	if _, err := svc.AddGuitar(context.Background(), testOwner, validInput()); err != nil {
 		t.Fatal(err)
 	}
-	_, err := svc.GetGuitar(context.Background(), "other-user", "guitar-1")
+	g, err := svc.GetGuitar(context.Background(), "other-user", "guitar-1")
+	if err != nil {
+		t.Fatalf("expected readable guitar, got %v", err)
+	}
+	if g.ID() != "guitar-1" {
+		t.Fatalf("unexpected guitar: %+v", g)
+	}
+}
+
+func TestService_UpdateGuitar_RejectsOtherOwners(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1"}})
+	if _, err := svc.AddGuitar(context.Background(), testOwner, validInput()); err != nil {
+		t.Fatal(err)
+	}
+	_, err := svc.UpdateGuitar(context.Background(), "other-user", "guitar-1", validInput())
 	if !errors.Is(err, domain.ErrGuitarNotFound) {
 		t.Fatalf("expected ErrGuitarNotFound, got %v", err)
 	}

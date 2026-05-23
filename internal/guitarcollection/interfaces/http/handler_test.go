@@ -11,6 +11,8 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
+	profileapp "github.com/wbits/guitars/internal/userprofile/application"
+	profilepersistence "github.com/wbits/guitars/internal/userprofile/infrastructure/persistence"
 )
 
 const validBearer = "Bearer test-secret"
@@ -29,13 +31,15 @@ func (s *sequentialIDs) NewID() string {
 func newTestHandler() *Handler {
 	repo := persistence.NewMemoryRepository()
 	marketRepo := persistence.NewMemoryMarketLogRepository()
+	profileRepo := profilepersistence.NewMemoryRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "g-3", "ml-1", "ml-2", "ml-3"}}
 	svc := application.NewService(repo, ids)
 	marketLogs := application.NewMarketLogService(repo, marketRepo, ids)
+	profiles := profileapp.NewService(profileRepo)
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, marketLogs, authn, nil)
+	return NewHandler(svc, marketLogs, profiles, authn, nil)
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -183,6 +187,118 @@ func TestHandler_PresignUpload_Returns503WhenNotConfigured(t *testing.T) {
 	resp, _ := h.Handle(context.Background(), reqWithAuth("POST", "/upload/presign", `{"contentType":"image/jpeg"}`))
 	if resp.StatusCode != 503 {
 		t.Errorf("want 503, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+}
+
+func TestHandler_GetMe_ReturnsPrincipalUserID(t *testing.T) {
+	h := newTestHandler()
+	resp, _ := h.Handle(context.Background(), reqWithAuth("GET", "/me", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var got meResponse
+	if err := json.Unmarshal([]byte(resp.Body), &got); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if got.UserID != "local-dev-user" {
+		t.Errorf("want local-dev-user, got %q", got.UserID)
+	}
+	if got.Email != "local-dev@example.com" {
+		t.Errorf("want local-dev@example.com, got %q", got.Email)
+	}
+	if got.DisplayName != "local-dev@example.com" {
+		t.Errorf("want displayName local-dev@example.com, got %q", got.DisplayName)
+	}
+}
+
+func TestHandler_PatchMe_UpdatesUsername(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	patchResp, _ := h.Handle(ctx, reqWithAuth("PATCH", "/me", `{"username":"collector"}`))
+	if patchResp.StatusCode != 200 {
+		t.Fatalf("patch: want 200, got %d (%s)", patchResp.StatusCode, patchResp.Body)
+	}
+	var updated meResponse
+	if err := json.Unmarshal([]byte(patchResp.Body), &updated); err != nil {
+		t.Fatalf("decode patch body: %v", err)
+	}
+	if updated.Username != "collector" || updated.DisplayName != "collector" {
+		t.Fatalf("unexpected profile: %+v", updated)
+	}
+
+	getResp, _ := h.Handle(ctx, reqWithAuth("GET", "/me", ""))
+	if getResp.StatusCode != 200 {
+		t.Fatalf("get: want 200, got %d (%s)", getResp.StatusCode, getResp.Body)
+	}
+	var got meResponse
+	if err := json.Unmarshal([]byte(getResp.Body), &got); err != nil {
+		t.Fatalf("decode get body: %v", err)
+	}
+	if got.Username != "collector" {
+		t.Fatalf("want persisted username, got %+v", got)
+	}
+}
+
+func TestHandler_ListCollections_ReturnsOwnersWithCounts(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: want 201, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("GET", "/collections", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("list collections: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var owners []collectionOwnerResponse
+	if err := json.Unmarshal([]byte(resp.Body), &owners); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if len(owners) != 1 || owners[0].UserID != "local-dev-user" || owners[0].GuitarCount != 1 {
+		t.Fatalf("unexpected owners: %+v", owners)
+	}
+	if owners[0].DisplayName != "local-dev@example.com" {
+		t.Fatalf("unexpected displayName: %+v", owners[0])
+	}
+}
+
+func TestHandler_ListUserCollection_ReturnsOwnedGuitars(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: want 201, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("GET", "/collections/local-dev-user/guitar", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("list user collection: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var list []guitarResponse
+	if err := json.Unmarshal([]byte(resp.Body), &list); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if len(list) != 1 || list[0].Brand != "Fender" {
+		t.Fatalf("unexpected list: %+v", list)
+	}
+}
+
+func TestHandler_GetGuitar_AllowsReadingOtherUsersGuitar(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: want 201, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var created guitarResponse
+	if err := json.Unmarshal([]byte(resp.Body), &created); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("GET", "/guitar/"+created.ID, ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("get guitar: want 200, got %d (%s)", resp.StatusCode, resp.Body)
 	}
 }
 

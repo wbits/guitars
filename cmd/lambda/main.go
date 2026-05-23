@@ -23,6 +23,8 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/storage"
+	profileapp "github.com/wbits/guitars/internal/userprofile/application"
+	profilepersistence "github.com/wbits/guitars/internal/userprofile/infrastructure/persistence"
 	httpapi "github.com/wbits/guitars/internal/guitarcollection/interfaces/http"
 )
 
@@ -45,6 +47,7 @@ func main() {
 
 	tableName := envOrDefault("GUITARS_TABLE", "Guitars")
 	marketLogsTable := envOrDefault("MARKET_LOGS_TABLE", "MarketLogs")
+	profilesTable := envOrDefault("USER_PROFILES_TABLE", "UserProfiles")
 
 	ddbOpts := []func(*dynamodb.Options){}
 	s3Opts := []func(*s3.Options){}
@@ -81,6 +84,7 @@ func main() {
 	}
 
 	marketLogRepo := persistence.NewMarketLogDynamoRepository(ddb, marketLogsTable)
+	profileRepo := profilepersistence.NewDynamoRepository(ddb, profilesTable, "usernameIndex")
 
 	authn, err := auth.BuildAuthenticator(ctx, awsCfg, smOpts)
 	if err != nil {
@@ -89,9 +93,10 @@ func main() {
 
 	svc := application.NewService(repo, uuidGen{})
 	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{})
-	handler := httpapi.NewHandler(svc, marketLogs, authn, presigner)
+	profiles := profileapp.NewService(profileRepo)
+	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner)
 
-	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, auth=%s, uploads=%t)", tableName, marketLogsTable, auth.AuthenticatorMode(), presigner != nil)
+	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, auth=%s, uploads=%t)", tableName, marketLogsTable, profilesTable, auth.AuthenticatorMode(), presigner != nil)
 	lambda.Start(handler.Handle)
 }
 

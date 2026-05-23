@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -165,6 +166,46 @@ func (r *DynamoRepository) FindByOwner(ctx context.Context, owner string) ([]*do
 	}
 	sort.Slice(guitars, func(i, j int) bool { return guitars[i].ID() < guitars[j].ID() })
 	return guitars, nil
+}
+
+// FindDistinctOwners returns sorted user ids that own at least one guitar.
+func (r *DynamoRepository) FindDistinctOwners(ctx context.Context) ([]string, error) {
+	var startKey map[string]ddbtypes.AttributeValue
+	seen := map[string]struct{}{}
+	for {
+		out, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+			TableName:        aws.String(r.table),
+			ProjectionExpression: aws.String("#owner"),
+			ExpressionAttributeNames: map[string]string{
+				"#owner": "owner",
+			},
+			ExclusiveStartKey: startKey,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("dynamodb Scan: %w", err)
+		}
+		for _, item := range out.Items {
+			var owner string
+			if av, ok := item["owner"]; ok {
+				if err := attributevalue.Unmarshal(av, &owner); err != nil {
+					return nil, fmt.Errorf("unmarshal owner: %w", err)
+				}
+			}
+			if owner = strings.TrimSpace(owner); owner != "" {
+				seen[owner] = struct{}{}
+			}
+		}
+		if len(out.LastEvaluatedKey) == 0 {
+			break
+		}
+		startKey = out.LastEvaluatedKey
+	}
+	owners := make([]string, 0, len(seen))
+	for owner := range seen {
+		owners = append(owners, owner)
+	}
+	sort.Strings(owners)
+	return owners, nil
 }
 
 // Delete removes a guitar. Uses a conditional expression so we can return

@@ -18,6 +18,9 @@ type Repository interface {
 	// FindByOwner returns guitars owned by the given user id.
 	FindByOwner(ctx context.Context, owner string) ([]*Guitar, error)
 
+	// FindDistinctOwners returns sorted user ids that own at least one guitar.
+	FindDistinctOwners(ctx context.Context) ([]string, error)
+
 	// Delete removes the guitar with the given id. Deleting an unknown id
 	// returns ErrGuitarNotFound so callers can produce the correct 404.
 	Delete(ctx context.Context, id string) error

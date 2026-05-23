@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
+	profiledomain "github.com/wbits/guitars/internal/userprofile/domain"
 )
 
 // guitarRequest is the JSON payload accepted by POST /guitar and PUT /guitar/{id}.
@@ -69,6 +70,37 @@ type presignUploadResponse struct {
 // errorResponse is the JSON envelope used for non-2xx responses.
 type errorResponse struct {
 	Error string `json:"error"`
+}
+
+// meResponse is returned by GET /me.
+type meResponse struct {
+	UserID      string `json:"userId"`
+	Username    string `json:"username,omitempty"`
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"displayName"`
+}
+
+// profilePatchRequest is the JSON payload for PATCH /me.
+type profilePatchRequest struct {
+	Username string `json:"username"`
+}
+
+// collectionOwnerResponse describes a user that owns at least one guitar.
+type collectionOwnerResponse struct {
+	UserID      string `json:"userId"`
+	Username    string `json:"username,omitempty"`
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"displayName"`
+	GuitarCount int    `json:"guitarCount"`
+}
+
+func toMeResponse(profile *profiledomain.Profile) meResponse {
+	return meResponse{
+		UserID:      profile.UserID(),
+		Username:    profile.Username(),
+		Email:       profile.Email(),
+		DisplayName: profile.DisplayName(),
+	}
 }
 
 // marketLogRequest is the JSON payload for POST /guitar/{id}/market-log.

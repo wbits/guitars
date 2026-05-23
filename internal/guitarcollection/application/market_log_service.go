@@ -27,7 +27,7 @@ func NewMarketLogService(guitars domain.Repository, marketLogs domain.MarketLogR
 
 // AddMarketLog records a single marketplace observation for a guitar.
 func (s *MarketLogService) AddMarketLog(ctx context.Context, ownerID, guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
-	if err := s.ensureGuitarAccess(ctx, ownerID, guitarID); err != nil {
+	if err := s.ensureGuitarWritable(ctx, ownerID, guitarID); err != nil {
 		return nil, err
 	}
 	log, err := s.buildMarketLog(guitarID, in)
@@ -42,7 +42,7 @@ func (s *MarketLogService) AddMarketLog(ctx context.Context, ownerID, guitarID s
 
 // AddMarketLogs records multiple observations for a guitar in one call.
 func (s *MarketLogService) AddMarketLogs(ctx context.Context, ownerID, guitarID string, inputs []MarketLogInput) ([]*domain.MarketLog, error) {
-	if err := s.ensureGuitarAccess(ctx, ownerID, guitarID); err != nil {
+	if err := s.ensureGuitarWritable(ctx, ownerID, guitarID); err != nil {
 		return nil, err
 	}
 	out := make([]*domain.MarketLog, 0, len(inputs))
@@ -72,7 +72,18 @@ func (s *MarketLogService) ensureGuitarAccess(ctx context.Context, ownerID, guit
 	if err != nil {
 		return err
 	}
-	if !guitarVisibleTo(g, ownerID) {
+	if !guitarReadableBy(g, ownerID) {
+		return domain.ErrGuitarNotFound
+	}
+	return nil
+}
+
+func (s *MarketLogService) ensureGuitarWritable(ctx context.Context, ownerID, guitarID string) error {
+	g, err := s.guitars.FindByID(ctx, guitarID)
+	if err != nil {
+		return err
+	}
+	if !guitarWritableBy(g, ownerID) {
 		return domain.ErrGuitarNotFound
 	}
 	return nil

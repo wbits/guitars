@@ -16,6 +16,10 @@ Parameters:
     Type: String
     Default: MarketLogs
     Description: DynamoDB table name that holds marketplace price observations.
+  UserProfilesTableName:
+    Type: String
+    Default: UserProfiles
+    Description: DynamoDB table name that holds user profile records.
   ApiDomainName:
     Type: String
     Default: guitars.brouwers.club
@@ -47,6 +51,7 @@ Globals:
       Variables:
         GUITARS_TABLE: !Ref TableName
         MARKET_LOGS_TABLE: !Ref MarketLogsTableName
+        USER_PROFILES_TABLE: !Ref UserProfilesTableName
         AWS_ENDPOINT_URL: ""
         COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
@@ -131,6 +136,27 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  UserProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref UserProfilesTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: usernameIndex
+          KeySchema:
+            - AttributeName: username
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -141,6 +167,8 @@ Resources:
             TableName: !Ref TableName
         - DynamoDBCrudPolicy:
             TableName: !Ref MarketLogsTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserProfilesTableName
         - !If
           - HasImagesBucket
           - Statement:
@@ -209,6 +237,41 @@ Resources:
           Type: Api
           Properties:
             Path: /guitar/{id}/market-log
+            Method: options
+        GetMe:
+          Type: Api
+          Properties:
+            Path: /me
+            Method: get
+        PatchMe:
+          Type: Api
+          Properties:
+            Path: /me
+            Method: patch
+        OptionsMe:
+          Type: Api
+          Properties:
+            Path: /me
+            Method: options
+        ListCollections:
+          Type: Api
+          Properties:
+            Path: /collections
+            Method: get
+        OptionsCollections:
+          Type: Api
+          Properties:
+            Path: /collections
+            Method: options
+        ListUserCollection:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/guitar
+            Method: get
+        OptionsUserCollection:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/guitar
             Method: options
 
   ApiCertificate:
@@ -288,3 +351,6 @@ Outputs:
   MarketLogsTableName:
     Description: DynamoDB table used for marketplace price observations.
     Value: !Ref MarketLogsTable
+  UserProfilesTableName:
+    Description: DynamoDB table used for user profile records.
+    Value: !Ref UserProfilesTable
