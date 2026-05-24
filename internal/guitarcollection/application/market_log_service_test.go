@@ -119,6 +119,55 @@ func TestMarketLogService_CrawlerBlockedWhenMarketCrawlDisabled(t *testing.T) {
 	}
 }
 
+func TestMarketLogService_ClearCollectionMarketLogs(t *testing.T) {
+	guitars := persistence.NewMemoryRepository()
+	logs := persistence.NewMemoryMarketLogRepository()
+	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "ml-1", "ml-2", "ml-3"}}
+	marketSvc := NewMarketLogService(guitars, logs, ids, nil, nil, nil)
+
+	ctx := context.Background()
+	price, _ := domain.NewMoney(199900, domain.EUR)
+	for _, id := range []string{"g-1", "g-2"} {
+		g, err := domain.NewGuitar(domain.GuitarProps{
+			ID: id, Owner: marketLogTestOwner, Brand: "Fender", TypeName: "Stratocaster", BuildYear: 1996, Price: price,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := guitars.Save(ctx, g); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, guitarID := range []string{"g-1", "g-2", "g-2"} {
+		if _, err := marketSvc.AddMarketLog(ctx, marketLogTestOwner, "owner@example.com", guitarID, MarketLogInput{
+			Source:        "reverb",
+			Action:        "for_sale",
+			PriceAmount:   150000,
+			PriceCurrency: "EUR",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	deleted, err := marketSvc.ClearCollectionMarketLogs(ctx, marketLogTestOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 3 {
+		t.Fatalf("want 3 deleted logs, got %d", deleted)
+	}
+	for _, guitarID := range []string{"g-1", "g-2"} {
+		listed, err := marketSvc.ListMarketLogs(ctx, marketLogTestOwner, guitarID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(listed) != 0 {
+			t.Fatalf("want 0 logs for %s, got %d", guitarID, len(listed))
+		}
+	}
+}
+
 type stubCrawlChecker struct {
 	enabled map[string]bool
 }

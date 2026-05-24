@@ -170,6 +170,15 @@ Content-Type: application/json
 {"marketCrawlEnabled": true}
 ```
 
+Admins can wipe every market log for a collection and start fresh:
+
+```http
+DELETE /collections/{userId}/market-log
+Authorization: Bearer <admin token>
+```
+
+Response: `{"deletedCount": 42}`
+
 `GET /collections` includes `marketCrawlEnabled` for each owner. Owners can
 always append market logs to their own guitars; the crawler account may only
 write to guitars whose owner has opted in.

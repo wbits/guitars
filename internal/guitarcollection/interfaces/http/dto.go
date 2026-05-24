@@ -102,6 +102,11 @@ type collectionMarketCrawlPatchRequest struct {
 	MarketCrawlEnabled bool `json:"marketCrawlEnabled"`
 }
 
+// clearCollectionMarketLogsResponse is returned by DELETE /collections/{userId}/market-log.
+type clearCollectionMarketLogsResponse struct {
+	DeletedCount int `json:"deletedCount"`
+}
+
 func toMeResponse(profile *profiledomain.Profile, isAdmin bool) meResponse {
 	return meResponse{
 		UserID:      profile.UserID(),

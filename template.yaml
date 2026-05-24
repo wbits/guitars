@@ -296,6 +296,16 @@ Resources:
           Properties:
             Path: /collections/{userId}/market-crawl
             Method: options
+        DeleteCollectionMarketLogs:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/market-log
+            Method: delete
+        OptionsCollectionMarketLogs:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/market-log
+            Method: options
 
   ApiCertificate:
     Type: AWS::CertificateManager::Certificate

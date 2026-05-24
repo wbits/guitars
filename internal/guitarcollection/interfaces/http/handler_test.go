@@ -288,6 +288,54 @@ func TestHandler_PatchCollectionMarketCrawl_RequiresAdmin(t *testing.T) {
 	}
 }
 
+func TestHandler_DeleteCollectionMarketLogs_RequiresAdmin(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+
+	createResp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if createResp.StatusCode != 201 {
+		t.Fatalf("create guitar: want 201, got %d (%s)", createResp.StatusCode, createResp.Body)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(createResp.Body), &created); err != nil {
+		t.Fatalf("decode guitar: %v", err)
+	}
+
+	logBody := `[{"source":"reverb","action":"for_sale","priceAmount":150000,"priceCurrency":"EUR"}]`
+	postResp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar/"+created.ID+"/market-log", logBody))
+	if postResp.StatusCode != 201 {
+		t.Fatalf("create market log: want 201, got %d (%s)", postResp.StatusCode, postResp.Body)
+	}
+
+	resp, _ := h.Handle(ctx, reqWithAuth("DELETE", "/collections/local-dev-user/market-log", ""))
+	if resp.StatusCode != 403 {
+		t.Fatalf("non-admin delete: want 403, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+
+	t.Setenv("LOCAL_DEV_ADMIN_GROUPS", "guitars-admins")
+	resp, _ = h.Handle(ctx, reqWithAuth("DELETE", "/collections/local-dev-user/market-log", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("admin delete: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var out clearCollectionMarketLogsResponse
+	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if out.DeletedCount != 1 {
+		t.Fatalf("want 1 deleted log, got %d", out.DeletedCount)
+	}
+
+	listResp, _ := h.Handle(ctx, reqWithAuth("GET", "/guitar/"+created.ID+"/market-log", ""))
+	if listResp.StatusCode != 200 {
+		t.Fatalf("list market logs: want 200, got %d (%s)", listResp.StatusCode, listResp.Body)
+	}
+	if listResp.Body != "[]" && listResp.Body != "null" {
+		t.Fatalf("expected empty logs, got %s", listResp.Body)
+	}
+}
+
 func TestHandler_ListUserCollection_ReturnsOwnedGuitars(t *testing.T) {
 	h := newTestHandler()
 	ctx := context.Background()

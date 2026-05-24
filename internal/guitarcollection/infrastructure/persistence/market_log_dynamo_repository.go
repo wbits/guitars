@@ -17,6 +17,7 @@ import (
 type MarketLogDynamoAPI interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+	BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error)
 }
 
 // MarketLogDynamoRepository implements domain.MarketLogRepository on DynamoDB.
@@ -143,6 +144,48 @@ func (r *MarketLogDynamoRepository) FindByGuitarID(ctx context.Context, guitarID
 		return logs[i].ObservedAt().After(logs[j].ObservedAt())
 	})
 	return logs, nil
+}
+
+// DeleteByGuitarID removes every market log for a guitar.
+func (r *MarketLogDynamoRepository) DeleteByGuitarID(ctx context.Context, guitarID string) (int, error) {
+	logs, err := r.FindByGuitarID(ctx, guitarID)
+	if err != nil {
+		return 0, err
+	}
+	if len(logs) == 0 {
+		return 0, nil
+	}
+	deleted := 0
+	for i := 0; i < len(logs); i += 25 {
+		end := i + 25
+		if end > len(logs) {
+			end = len(logs)
+		}
+		batch := logs[i:end]
+		req := make([]ddbtypes.WriteRequest, 0, len(batch))
+		for _, log := range batch {
+			req = append(req, ddbtypes.WriteRequest{
+				DeleteRequest: &ddbtypes.DeleteRequest{
+					Key: map[string]ddbtypes.AttributeValue{
+						"id": &ddbtypes.AttributeValueMemberS{Value: log.ID()},
+					},
+				},
+			})
+		}
+		out, err := r.client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+			RequestItems: map[string][]ddbtypes.WriteRequest{
+				r.table: req,
+			},
+		})
+		if err != nil {
+			return deleted, fmt.Errorf("dynamodb BatchWriteItem: %w", err)
+		}
+		if len(out.UnprocessedItems) > 0 {
+			return deleted, fmt.Errorf("dynamodb BatchWriteItem: %d unprocessed deletes", len(out.UnprocessedItems[r.table]))
+		}
+		deleted += len(batch)
+	}
+	return deleted, nil
 }
 
 var _ domain.MarketLogRepository = (*MarketLogDynamoRepository)(nil)

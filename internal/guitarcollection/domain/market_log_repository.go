@@ -6,4 +6,5 @@ import "context"
 type MarketLogRepository interface {
 	Save(ctx context.Context, log *MarketLog) error
 	FindByGuitarID(ctx context.Context, guitarID string) ([]*MarketLog, error)
+	DeleteByGuitarID(ctx context.Context, guitarID string) (deleted int, err error)
 }

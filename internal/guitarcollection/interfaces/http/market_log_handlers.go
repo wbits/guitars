@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 
 	"github.com/wbits/guitars/internal/guitarcollection/application"
+	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 )
 
 func (h *Handler) listMarketLogs(ctx context.Context, ownerID, guitarID string) (events.APIGatewayProxyResponse, error) {
@@ -51,6 +52,17 @@ func (h *Handler) createMarketLogs(ctx context.Context, callerID, callerEmail, g
 		return jsonResponse(201, out[0])
 	}
 	return jsonResponse(201, out)
+}
+
+func (h *Handler) deleteCollectionMarketLogs(ctx context.Context, principal auth.Principal, userID string) (events.APIGatewayProxyResponse, error) {
+	if !auth.IsAdmin(principal, h.adminGroup) {
+		return jsonResponse(403, errorResponse{Error: "forbidden"})
+	}
+	deleted, err := h.marketLogs.ClearCollectionMarketLogs(ctx, userID)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	return jsonResponse(200, clearCollectionMarketLogsResponse{DeletedCount: deleted})
 }
 
 func decodeMarketLogRequests(body string) ([]marketLogRequest, error) {

@@ -45,6 +45,21 @@ func (r *MemoryMarketLogRepository) FindByGuitarID(ctx context.Context, guitarID
 	return out, nil
 }
 
+// DeleteByGuitarID removes every market log for a guitar.
+func (r *MemoryMarketLogRepository) DeleteByGuitarID(ctx context.Context, guitarID string) (int, error) {
+	_ = ctx
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	deleted := 0
+	for id, log := range r.logs {
+		if log.GuitarID() == guitarID {
+			delete(r.logs, id)
+			deleted++
+		}
+	}
+	return deleted, nil
+}
+
 // All returns every stored log (test helper).
 func (r *MemoryMarketLogRepository) All() []*domain.MarketLog {
 	r.mu.RLock()

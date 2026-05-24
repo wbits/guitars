@@ -48,6 +48,7 @@ var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
 var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
 var userCollectionPath = regexp.MustCompile(`^/collections/([^/]+)/guitar/?$`)
 var collectionMarketCrawlPath = regexp.MustCompile(`^/collections/([^/]+)/market-crawl/?$`)
+var collectionMarketLogPath = regexp.MustCompile(`^/collections/([^/]+)/market-log/?$`)
 
 // Handle is the entrypoint suitable for lambda.Start.
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -83,6 +84,11 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		if m := collectionMarketCrawlPath.FindStringSubmatch(path); m != nil {
 			if method == "PATCH" {
 				return h.patchCollectionMarketCrawl(ctx, principal, m[1], req.Body)
+			}
+		}
+		if m := collectionMarketLogPath.FindStringSubmatch(path); m != nil {
+			if method == "DELETE" {
+				return h.deleteCollectionMarketLogs(ctx, principal, m[1])
 			}
 		}
 		if m := userCollectionPath.FindStringSubmatch(path); m != nil {

@@ -85,6 +85,27 @@ func (s *MarketLogService) ListMarketLogs(ctx context.Context, ownerID, guitarID
 	return s.marketLogs.FindByGuitarID(ctx, guitarID)
 }
 
+// ClearCollectionMarketLogs deletes every market log for each guitar in a collection.
+func (s *MarketLogService) ClearCollectionMarketLogs(ctx context.Context, ownerUserID string) (int, error) {
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	if ownerUserID == "" {
+		return 0, domain.ErrGuitarNotFound
+	}
+	guitars, err := s.guitars.FindByOwner(ctx, ownerUserID)
+	if err != nil {
+		return 0, err
+	}
+	deleted := 0
+	for _, guitar := range guitars {
+		n, err := s.marketLogs.DeleteByGuitarID(ctx, guitar.ID())
+		if err != nil {
+			return deleted, err
+		}
+		deleted += n
+	}
+	return deleted, nil
+}
+
 func (s *MarketLogService) ensureGuitarAccess(ctx context.Context, ownerID, guitarID string) error {
 	g, err := s.guitars.FindByID(ctx, guitarID)
 	if err != nil {
