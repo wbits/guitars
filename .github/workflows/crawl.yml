@@ -36,8 +36,6 @@ jobs:
       COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
       COGNITO_USERNAME: ${{ secrets.COGNITO_CRAWLER_USERNAME }}
       COGNITO_PASSWORD: ${{ secrets.COGNITO_CRAWLER_PASSWORD }}
-      EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
-      EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,11 +68,6 @@ jobs:
             echo "::error::Set the COGNITO_CRAWLER_PASSWORD repository secret to match the Cognito user password."
             exit 1
           fi
-          if [ -z "${EBAY_CLIENT_ID:-}" ] || [ -z "${EBAY_CLIENT_SECRET:-}" ]; then
-            echo "::warning::EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are not set; the crawler will skip eBay."
-          else
-            echo "eBay credentials configured."
-          fi
 
       - name: Verify Cognito sign-in
         run: |
@@ -89,7 +82,7 @@ jobs:
       - name: Run market crawler
         run: |
           set -euo pipefail
-          ARGS=()
+          ARGS=(-skip-ebay)
           if [ -n "${{ github.event.inputs.guitar_id }}" ]; then
             ARGS+=("-guitar-id=${{ github.event.inputs.guitar_id }}")
           fi

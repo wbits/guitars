@@ -176,8 +176,9 @@ write to guitars whose owner has opted in.
 
 ## Market crawler (GitHub Actions)
 
-The [Market crawl](.github/workflows/crawl.yml) workflow searches Reverb (and
-optionally eBay/Marktplaats) and uploads price observations to the API.
+The [Market crawl](.github/workflows/crawl.yml) workflow searches Reverb and
+Marktplaats and uploads price observations to the API. eBay is currently skipped
+in GitHub Actions (`-skip-ebay`) until a working eBay developer keyset is available.
 
 | Trigger | When |
 | ------- | ---- |
@@ -194,8 +195,8 @@ Configure in the GitHub repo:
 | Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
-| Secret | `EBAY_CLIENT_ID` | eBay production app client ID (optional; without it eBay is skipped) |
-| Secret | `EBAY_CLIENT_SECRET` | eBay production app client secret (optional) |
+| Secret | `EBAY_CLIENT_ID` | eBay production app client ID (optional; local runs only until CI enables eBay) |
+| Secret | `EBAY_CLIENT_SECRET` | eBay production app client secret (optional; local runs only until CI enables eBay) |
 
 The crawler account (`info@wbits.net` by default) may append market logs to
 guitars in collections where `marketCrawlEnabled` is true. When a listing
