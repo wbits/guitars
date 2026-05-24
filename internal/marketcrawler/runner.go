@@ -15,9 +15,18 @@ type Runner struct {
 
 // RunAll crawls every guitar in the collection.
 func (r *Runner) RunAll(ctx context.Context) error {
+	logger := r.Logger
+	if logger == nil {
+		logger = log.Default()
+	}
 	guitars, err := r.API.ListGuitars(ctx)
 	if err != nil {
 		return err
+	}
+	logger.Printf("found %d guitars to crawl", len(guitars))
+	if len(guitars) == 0 {
+		logger.Print("no guitars found across collections")
+		return nil
 	}
 	for _, g := range guitars {
 		if err := r.RunGuitar(ctx, GuitarSummary(g)); err != nil {
@@ -46,6 +55,10 @@ func (r *Runner) RunGuitar(ctx context.Context, guitar GuitarSummary) error {
 	if err := r.API.UploadMarketLogs(ctx, guitar.ID, all); err != nil {
 		return err
 	}
-	logger.Printf("uploaded %d market logs for guitar %s", len(all), guitar.ID)
+	if len(all) == 0 {
+		logger.Printf("no marketplace findings for guitar %s", guitar.ID)
+	} else {
+		logger.Printf("uploaded %d market logs for guitar %s", len(all), guitar.ID)
+	}
 	return nil
 }

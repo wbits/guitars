@@ -34,7 +34,7 @@ func newTestHandler() *Handler {
 	profileRepo := profilepersistence.NewMemoryRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "g-3", "ml-1", "ml-2", "ml-3"}}
 	svc := application.NewService(repo, ids)
-	marketLogs := application.NewMarketLogService(repo, marketRepo, ids)
+	marketLogs := application.NewMarketLogService(repo, marketRepo, ids, nil)
 	profiles := profileapp.NewService(profileRepo)
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil

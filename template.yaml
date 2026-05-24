@@ -58,6 +58,7 @@ Globals:
         IMAGES_BUCKET: !Ref ImagesBucketName
         IMAGES_CDN_BASE_URL: !Ref ImagesCdnBaseUrl
         IMAGES_S3_PUBLIC_ENDPOINT: ""
+        MARKET_CRAWLER_EMAIL: info@wbits.net
 
 Conditions:
   HasImagesBucket: !Not [!Equals [!Ref ImagesBucketName, ""]]

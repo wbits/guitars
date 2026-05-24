@@ -89,7 +89,7 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 			case "GET":
 				return h.listMarketLogs(ctx, principal.UserID, id)
 			case "POST":
-				return h.createMarketLogs(ctx, principal.UserID, id, req.Body)
+				return h.createMarketLogs(ctx, principal.UserID, principal.Email, id, req.Body)
 			}
 		}
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {

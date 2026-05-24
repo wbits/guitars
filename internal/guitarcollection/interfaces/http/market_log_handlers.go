@@ -23,7 +23,7 @@ func (h *Handler) listMarketLogs(ctx context.Context, ownerID, guitarID string) 
 	return jsonResponse(200, out)
 }
 
-func (h *Handler) createMarketLogs(ctx context.Context, ownerID, guitarID, body string) (events.APIGatewayProxyResponse, error) {
+func (h *Handler) createMarketLogs(ctx context.Context, callerID, callerEmail, guitarID, body string) (events.APIGatewayProxyResponse, error) {
 	reqs, err := decodeMarketLogRequests(body)
 	if err != nil {
 		return jsonResponse(400, errorResponse{Error: err.Error()})
@@ -39,7 +39,7 @@ func (h *Handler) createMarketLogs(ctx context.Context, ownerID, guitarID, body 
 		}
 		inputs = append(inputs, input)
 	}
-	logs, err := h.marketLogs.AddMarketLogs(ctx, ownerID, guitarID, inputs)
+	logs, err := h.marketLogs.AddMarketLogs(ctx, callerID, callerEmail, guitarID, inputs)
 	if err != nil {
 		return errorToResponse(err)
 	}

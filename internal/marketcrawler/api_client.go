@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -37,9 +38,58 @@ func NewAPIClient(baseURL, token string) *APIClient {
 	}
 }
 
-// ListGuitars returns every guitar in the collection.
+// ListGuitars returns every guitar across all collections.
 func (c *APIClient) ListGuitars(ctx context.Context) ([]GuitarFromAPI, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/guitar", nil)
+	owners, err := c.listCollections(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{})
+	out := make([]GuitarFromAPI, 0)
+	for _, owner := range owners {
+		guitars, err := c.listUserGuitars(ctx, owner.UserID)
+		if err != nil {
+			return nil, err
+		}
+		for _, guitar := range guitars {
+			if _, ok := seen[guitar.ID]; ok {
+				continue
+			}
+			seen[guitar.ID] = struct{}{}
+			out = append(out, guitar)
+		}
+	}
+	return out, nil
+}
+
+type collectionOwnerFromAPI struct {
+	UserID string `json:"userId"`
+}
+
+func (c *APIClient) listCollections(ctx context.Context) ([]collectionOwnerFromAPI, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/collections", nil)
+	if err != nil {
+		return nil, err
+	}
+	c.applyAuth(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, apiError(resp)
+	}
+	var out []collectionOwnerFromAPI
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *APIClient) listUserGuitars(ctx context.Context, userID string) ([]GuitarFromAPI, error) {
+	url := fmt.Sprintf("%s/collections/%s/guitar", c.BaseURL, url.PathEscape(userID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

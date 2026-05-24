@@ -99,7 +99,7 @@ func main() {
 	}
 
 	svc := application.NewService(repo, uuidGen{})
-	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{})
+	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{}, application.ParseCrawlerEmails(os.Getenv("MARKET_CRAWLER_EMAIL")))
 	profiles := profileapp.NewService(profileRepo)
 	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner)
 

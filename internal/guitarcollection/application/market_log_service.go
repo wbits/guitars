@@ -9,25 +9,32 @@ import (
 
 // MarketLogService coordinates market price log use cases.
 type MarketLogService struct {
-	guitars    domain.Repository
-	marketLogs domain.MarketLogRepository
-	ids        IDGenerator
-	clock      func() time.Time
+	guitars             domain.Repository
+	marketLogs          domain.MarketLogRepository
+	ids                 IDGenerator
+	clock               func() time.Time
+	marketCrawlerEmails map[string]struct{}
 }
 
 // NewMarketLogService wires the market log application service.
-func NewMarketLogService(guitars domain.Repository, marketLogs domain.MarketLogRepository, ids IDGenerator) *MarketLogService {
+func NewMarketLogService(
+	guitars domain.Repository,
+	marketLogs domain.MarketLogRepository,
+	ids IDGenerator,
+	marketCrawlerEmails map[string]struct{},
+) *MarketLogService {
 	return &MarketLogService{
-		guitars:    guitars,
-		marketLogs: marketLogs,
-		ids:        ids,
-		clock:      time.Now,
+		guitars:             guitars,
+		marketLogs:          marketLogs,
+		ids:                 ids,
+		clock:               time.Now,
+		marketCrawlerEmails: marketCrawlerEmails,
 	}
 }
 
 // AddMarketLog records a single marketplace observation for a guitar.
-func (s *MarketLogService) AddMarketLog(ctx context.Context, ownerID, guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
-	if err := s.ensureGuitarWritable(ctx, ownerID, guitarID); err != nil {
+func (s *MarketLogService) AddMarketLog(ctx context.Context, callerID, callerEmail, guitarID string, in MarketLogInput) (*domain.MarketLog, error) {
+	if err := s.ensureMarketLogWritable(ctx, callerID, callerEmail, guitarID); err != nil {
 		return nil, err
 	}
 	log, err := s.buildMarketLog(guitarID, in)
@@ -41,8 +48,8 @@ func (s *MarketLogService) AddMarketLog(ctx context.Context, ownerID, guitarID s
 }
 
 // AddMarketLogs records multiple observations for a guitar in one call.
-func (s *MarketLogService) AddMarketLogs(ctx context.Context, ownerID, guitarID string, inputs []MarketLogInput) ([]*domain.MarketLog, error) {
-	if err := s.ensureGuitarWritable(ctx, ownerID, guitarID); err != nil {
+func (s *MarketLogService) AddMarketLogs(ctx context.Context, callerID, callerEmail, guitarID string, inputs []MarketLogInput) ([]*domain.MarketLog, error) {
+	if err := s.ensureMarketLogWritable(ctx, callerID, callerEmail, guitarID); err != nil {
 		return nil, err
 	}
 	out := make([]*domain.MarketLog, 0, len(inputs))
@@ -78,12 +85,12 @@ func (s *MarketLogService) ensureGuitarAccess(ctx context.Context, ownerID, guit
 	return nil
 }
 
-func (s *MarketLogService) ensureGuitarWritable(ctx context.Context, ownerID, guitarID string) error {
+func (s *MarketLogService) ensureMarketLogWritable(ctx context.Context, callerID, callerEmail, guitarID string) error {
 	g, err := s.guitars.FindByID(ctx, guitarID)
 	if err != nil {
 		return err
 	}
-	if !guitarWritableBy(g, ownerID) {
+	if !MarketLogWritableBy(g, callerID, callerEmail, s.marketCrawlerEmails) {
 		return domain.ErrGuitarNotFound
 	}
 	return nil

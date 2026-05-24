@@ -164,6 +164,11 @@ Configure in the GitHub repo:
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
 
+The crawler account (`info@wbits.net` by default) may append market logs to any
+guitar. It discovers guitars via `GET /collections` and each owner's collection,
+not only guitars it owns. Set `MARKET_CRAWLER_EMAIL` on the API Lambda if you use
+a different crawler account email.
+
 To read the current password from AWS Secrets Manager (if you use it as the
 source of truth):
 
