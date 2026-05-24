@@ -186,8 +186,9 @@ write to guitars whose owner has opted in.
 ## Market crawler (GitHub Actions)
 
 The [Market crawl](.github/workflows/crawl.yml) workflow searches Reverb and
-Marktplaats and uploads price observations to the API. eBay is currently skipped
-in GitHub Actions (`-skip-ebay`) until a working eBay developer keyset is available.
+uploads price observations to the API. eBay and Marktplaats are currently skipped
+in GitHub Actions (`-skip-ebay` and `-skip-marktplaats`); Reverb alone is enough
+for production crawls today.
 
 | Trigger | When |
 | ------- | ---- |

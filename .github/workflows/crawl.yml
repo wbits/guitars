@@ -82,7 +82,7 @@ jobs:
       - name: Run market crawler
         run: |
           set -euo pipefail
-          ARGS=(-skip-ebay)
+          ARGS=(-skip-ebay -skip-marktplaats)
           if [ -n "${{ github.event.inputs.guitar_id }}" ]; then
             ARGS+=("-guitar-id=${{ github.event.inputs.guitar_id }}")
           fi
