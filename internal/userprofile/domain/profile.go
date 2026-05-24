@@ -9,16 +9,18 @@ var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
 
 // Profile holds display identity for an authenticated user.
 type Profile struct {
-	userID   string
-	username string
-	email    string
+	userID             string
+	username           string
+	email              string
+	marketCrawlEnabled bool
 }
 
 // ProfileProps are the mutable fields of a Profile.
 type ProfileProps struct {
-	UserID   string
-	Username string
-	Email    string
+	UserID             string
+	Username           string
+	Email              string
+	MarketCrawlEnabled bool
 }
 
 // NewProfile validates and constructs a Profile.
@@ -34,9 +36,10 @@ func NewProfile(props ProfileProps) (*Profile, error) {
 		}
 	}
 	return &Profile{
-		userID:   userID,
-		username: username,
-		email:    strings.TrimSpace(props.Email),
+		userID:             userID,
+		username:           username,
+		email:              strings.TrimSpace(props.Email),
+		marketCrawlEnabled: props.MarketCrawlEnabled,
 	}, nil
 }
 
@@ -55,6 +58,14 @@ func ValidateUsername(username string) error {
 func (p *Profile) UserID() string   { return p.userID }
 func (p *Profile) Username() string { return p.username }
 func (p *Profile) Email() string    { return p.email }
+
+// MarketCrawlEnabled reports whether automated market crawling is enabled for this collection.
+func (p *Profile) MarketCrawlEnabled() bool { return p.marketCrawlEnabled }
+
+// SetMarketCrawlEnabled toggles automated market crawling for this collection.
+func (p *Profile) SetMarketCrawlEnabled(enabled bool) {
+	p.marketCrawlEnabled = enabled
+}
 
 // DisplayName returns the username when set, otherwise the email, otherwise the user id.
 func (p *Profile) DisplayName() string {

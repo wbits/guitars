@@ -19,7 +19,7 @@ func guitarWritableBy(g *domain.Guitar, userID string) bool {
 }
 
 // MarketLogWritableBy reports whether caller may append market observations to a guitar.
-func MarketLogWritableBy(g *domain.Guitar, callerID, callerEmail string, crawlerEmails map[string]struct{}) bool {
+func MarketLogWritableBy(g *domain.Guitar, callerID, callerEmail string, crawlerEmails map[string]struct{}, ownerMarketCrawlEnabled bool) bool {
 	if guitarWritableBy(g, callerID) {
 		return true
 	}
@@ -28,6 +28,9 @@ func MarketLogWritableBy(g *domain.Guitar, callerID, callerEmail string, crawler
 	}
 	email := strings.ToLower(strings.TrimSpace(callerEmail))
 	if _, ok := crawlerEmails[email]; !ok {
+		return false
+	}
+	if !ownerMarketCrawlEnabled {
 		return false
 	}
 	return guitarReadableBy(g, callerID)

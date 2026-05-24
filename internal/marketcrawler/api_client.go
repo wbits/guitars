@@ -47,6 +47,9 @@ func (c *APIClient) ListGuitars(ctx context.Context) ([]GuitarFromAPI, error) {
 	seen := make(map[string]struct{})
 	out := make([]GuitarFromAPI, 0)
 	for _, owner := range owners {
+		if !owner.MarketCrawlEnabled {
+			continue
+		}
 		guitars, err := c.listUserGuitars(ctx, owner.UserID)
 		if err != nil {
 			return nil, err
@@ -63,7 +66,8 @@ func (c *APIClient) ListGuitars(ctx context.Context) ([]GuitarFromAPI, error) {
 }
 
 type collectionOwnerFromAPI struct {
-	UserID string `json:"userId"`
+	UserID             string `json:"userId"`
+	MarketCrawlEnabled bool   `json:"marketCrawlEnabled"`
 }
 
 func (c *APIClient) listCollections(ctx context.Context) ([]collectionOwnerFromAPI, error) {

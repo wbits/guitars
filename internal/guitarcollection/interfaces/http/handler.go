@@ -33,19 +33,21 @@ type Handler struct {
 	profiles   *profileapp.Service
 	auth       auth.Authenticator
 	presigner  *storage.Presigner
+	adminGroup string
 }
 
 // NewHandler constructs a Handler wired to the supplied services and
 // authenticator. Both service arguments are required. presigner may be nil
 // when image uploads are not configured. profiles may be nil to disable
-// profile endpoints.
-func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner) *Handler {
-	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, auth: a, presigner: presigner}
+// profile endpoints. adminGroup names the Cognito group that grants admin access.
+func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner, adminGroup string) *Handler {
+	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, auth: a, presigner: presigner, adminGroup: adminGroup}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
 var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
 var userCollectionPath = regexp.MustCompile(`^/collections/([^/]+)/guitar/?$`)
+var collectionMarketCrawlPath = regexp.MustCompile(`^/collections/([^/]+)/market-crawl/?$`)
 
 // Handle is the entrypoint suitable for lambda.Start.
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -78,6 +80,11 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	case path == "/upload/presign" && method == "POST":
 		return h.presignUpload(ctx, req.Body)
 	default:
+		if m := collectionMarketCrawlPath.FindStringSubmatch(path); m != nil {
+			if method == "PATCH" {
+				return h.patchCollectionMarketCrawl(ctx, principal, m[1], req.Body)
+			}
+		}
 		if m := userCollectionPath.FindStringSubmatch(path); m != nil {
 			if method == "GET" {
 				return h.listUserCollection(ctx, m[1])
@@ -113,14 +120,15 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 }
 
 func (h *Handler) me(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
+	isAdmin := auth.IsAdmin(principal, h.adminGroup)
 	if h.profiles == nil {
-		return jsonResponse(200, meResponse{UserID: principal.UserID, Email: principal.Email, DisplayName: profileapp.DisplayNameForUser(principal.UserID, nil)})
+		return jsonResponse(200, meResponse{UserID: principal.UserID, Email: principal.Email, DisplayName: profileapp.DisplayNameForUser(principal.UserID, nil), IsAdmin: isAdmin})
 	}
 	profile, err := h.profiles.GetProfile(ctx, principal.UserID, principal.Email)
 	if err != nil {
 		return profileErrorToResponse(err)
 	}
-	return jsonResponse(200, toMeResponse(profile))
+	return jsonResponse(200, toMeResponse(profile, isAdmin))
 }
 
 func (h *Handler) patchMe(ctx context.Context, principal auth.Principal, body string) (events.APIGatewayProxyResponse, error) {
@@ -135,7 +143,29 @@ func (h *Handler) patchMe(ctx context.Context, principal auth.Principal, body st
 	if err != nil {
 		return profileErrorToResponse(err)
 	}
-	return jsonResponse(200, toMeResponse(profile))
+	return jsonResponse(200, toMeResponse(profile, auth.IsAdmin(principal, h.adminGroup)))
+}
+
+func (h *Handler) patchCollectionMarketCrawl(ctx context.Context, principal auth.Principal, userID, body string) (events.APIGatewayProxyResponse, error) {
+	if !auth.IsAdmin(principal, h.adminGroup) {
+		return jsonResponse(403, errorResponse{Error: "forbidden"})
+	}
+	if h.profiles == nil {
+		return jsonResponse(503, errorResponse{Error: "profiles are not configured"})
+	}
+	var req collectionMarketCrawlPatchRequest
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
+	}
+	profile, err := h.profiles.SetMarketCrawlEnabled(ctx, userID, req.MarketCrawlEnabled)
+	if err != nil {
+		return profileErrorToResponse(err)
+	}
+	guitars, err := h.svc.ListUserGuitars(ctx, userID)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	return jsonResponse(200, toCollectionOwnerResponse(userID, profile, len(guitars)))
 }
 
 func (h *Handler) listCollections(ctx context.Context) (events.APIGatewayProxyResponse, error) {
@@ -164,6 +194,7 @@ func (h *Handler) listCollections(ctx context.Context) (events.APIGatewayProxyRe
 			resp.Username = profile.Username()
 			resp.Email = profile.Email()
 			resp.DisplayName = profile.DisplayName()
+			resp.MarketCrawlEnabled = profile.MarketCrawlEnabled()
 		} else {
 			resp.DisplayName = profileapp.DisplayNameForUser(ownerID, nil)
 		}

@@ -143,6 +143,37 @@ make lint         # requires golangci-lint on PATH
 The first CI run on a branch establishes a baseline; subsequent pushes enforce
 the 80% diff-coverage threshold on lines you change.
 
+## Admin role and market crawl opt-in
+
+Administrators belong to the Cognito user pool group **`guitars-admins`**
+(provisioned by `template.yaml`). Group membership is included in JWT access
+and ID tokens as the `cognito:groups` claim. The API exposes `isAdmin` on
+`GET /me` so clients can show admin UI when needed.
+
+**Assigning admins:** add users to the `guitars-admins` group in the AWS
+Console (Cognito → User pools → guitars → Groups → guitars-admins → Add user).
+That manual assignment is the recommended approach for a small, fixed admin set.
+No self-service promotion path exists in the app.
+
+For local bearer-token auth, set `LOCAL_DEV_ADMIN_GROUPS=guitars-admins` to
+simulate admin membership.
+
+Each user collection has a `marketCrawlEnabled` flag on the user profile
+(default **`false`**). The scheduled market crawler only scans collections
+where an admin has enabled this flag. Admins toggle it with:
+
+```http
+PATCH /collections/{userId}/market-crawl
+Authorization: Bearer <admin token>
+Content-Type: application/json
+
+{"marketCrawlEnabled": true}
+```
+
+`GET /collections` includes `marketCrawlEnabled` for each owner. Owners can
+always append market logs to their own guitars; the crawler account may only
+write to guitars whose owner has opted in.
+
 ## Market crawler (GitHub Actions)
 
 The [Market crawl](.github/workflows/crawl.yml) workflow searches Reverb (and
@@ -164,10 +195,11 @@ Configure in the GitHub repo:
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
 
-The crawler account (`info@wbits.net` by default) may append market logs to any
-guitar. It discovers guitars via `GET /collections` and each owner's collection,
-not only guitars it owns. Set `MARKET_CRAWLER_EMAIL` on the API Lambda if you use
-a different crawler account email.
+The crawler account (`info@wbits.net` by default) may append market logs to
+guitars in collections where `marketCrawlEnabled` is true. It discovers
+collections via `GET /collections` and skips owners with the flag disabled.
+Set `MARKET_CRAWLER_EMAIL` on the API Lambda if you use a different crawler
+account email.
 
 To read the current password from AWS Secrets Manager (if you use it as the
 source of truth):

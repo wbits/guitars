@@ -78,6 +78,7 @@ type meResponse struct {
 	Username    string `json:"username,omitempty"`
 	Email       string `json:"email,omitempty"`
 	DisplayName string `json:"displayName"`
+	IsAdmin     bool   `json:"isAdmin"`
 }
 
 // profilePatchRequest is the JSON payload for PATCH /me.
@@ -87,20 +88,41 @@ type profilePatchRequest struct {
 
 // collectionOwnerResponse describes a user that owns at least one guitar.
 type collectionOwnerResponse struct {
-	UserID      string `json:"userId"`
-	Username    string `json:"username,omitempty"`
-	Email       string `json:"email,omitempty"`
-	DisplayName string `json:"displayName"`
-	GuitarCount int    `json:"guitarCount"`
+	UserID             string `json:"userId"`
+	Username           string `json:"username,omitempty"`
+	Email              string `json:"email,omitempty"`
+	DisplayName        string `json:"displayName"`
+	GuitarCount        int    `json:"guitarCount"`
+	MarketCrawlEnabled bool   `json:"marketCrawlEnabled"`
 }
 
-func toMeResponse(profile *profiledomain.Profile) meResponse {
+// collectionMarketCrawlPatchRequest is the JSON payload for PATCH /collections/{userId}/market-crawl.
+type collectionMarketCrawlPatchRequest struct {
+	MarketCrawlEnabled bool `json:"marketCrawlEnabled"`
+}
+
+func toMeResponse(profile *profiledomain.Profile, isAdmin bool) meResponse {
 	return meResponse{
 		UserID:      profile.UserID(),
 		Username:    profile.Username(),
 		Email:       profile.Email(),
 		DisplayName: profile.DisplayName(),
+		IsAdmin:     isAdmin,
 	}
+}
+
+func toCollectionOwnerResponse(userID string, profile *profiledomain.Profile, guitarCount int) collectionOwnerResponse {
+	resp := collectionOwnerResponse{
+		UserID:      userID,
+		GuitarCount: guitarCount,
+	}
+	if profile != nil {
+		resp.Username = profile.Username()
+		resp.Email = profile.Email()
+		resp.DisplayName = profile.DisplayName()
+		resp.MarketCrawlEnabled = profile.MarketCrawlEnabled()
+	}
+	return resp
 }
 
 // marketLogRequest is the JSON payload for POST /guitar/{id}/market-log.

@@ -79,6 +79,41 @@ func (s *Service) GetProfilesByUserIDs(ctx context.Context, userIDs []string) (m
 	return s.repo.FindByUserIDs(ctx, userIDs)
 }
 
+// SetMarketCrawlEnabled toggles market crawl for a user collection.
+func (s *Service) SetMarketCrawlEnabled(ctx context.Context, userID string, enabled bool) (*domain.Profile, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, domain.InvalidField("userId", "is required")
+	}
+	profile, err := s.repo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil {
+		profile, err = domain.NewProfile(domain.ProfileProps{UserID: userID})
+		if err != nil {
+			return nil, err
+		}
+	}
+	profile.SetMarketCrawlEnabled(enabled)
+	if err := s.repo.Save(ctx, profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// MarketCrawlEnabledForUser reports whether market crawl is enabled for the given user.
+func (s *Service) MarketCrawlEnabledForUser(ctx context.Context, userID string) (bool, error) {
+	profile, err := s.repo.FindByUserID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if profile == nil {
+		return false, nil
+	}
+	return profile.MarketCrawlEnabled(), nil
+}
+
 // DisplayNameForUser resolves a display label for a user id using stored profile data.
 func DisplayNameForUser(userID string, profile *domain.Profile) string {
 	if profile != nil {

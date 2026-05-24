@@ -34,12 +34,12 @@ func newTestHandler() *Handler {
 	profileRepo := profilepersistence.NewMemoryRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "g-3", "ml-1", "ml-2", "ml-3"}}
 	svc := application.NewService(repo, ids)
-	marketLogs := application.NewMarketLogService(repo, marketRepo, ids, nil)
 	profiles := profileapp.NewService(profileRepo)
+	marketLogs := application.NewMarketLogService(repo, marketRepo, ids, nil, profiles)
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, marketLogs, profiles, authn, nil)
+	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins")
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -260,6 +260,31 @@ func TestHandler_ListCollections_ReturnsOwnersWithCounts(t *testing.T) {
 	}
 	if owners[0].DisplayName != "local-dev@example.com" {
 		t.Fatalf("unexpected displayName: %+v", owners[0])
+	}
+	if owners[0].MarketCrawlEnabled {
+		t.Fatalf("market crawl should default to false: %+v", owners[0])
+	}
+}
+
+func TestHandler_PatchCollectionMarketCrawl_RequiresAdmin(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	resp, _ := h.Handle(ctx, reqWithAuth("PATCH", "/collections/local-dev-user/market-crawl", `{"marketCrawlEnabled":true}`))
+	if resp.StatusCode != 403 {
+		t.Fatalf("non-admin patch: want 403, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+
+	t.Setenv("LOCAL_DEV_ADMIN_GROUPS", "guitars-admins")
+	resp, _ = h.Handle(ctx, reqWithAuth("PATCH", "/collections/local-dev-user/market-crawl", `{"marketCrawlEnabled":true}`))
+	if resp.StatusCode != 200 {
+		t.Fatalf("admin patch: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var owner collectionOwnerResponse
+	if err := json.Unmarshal([]byte(resp.Body), &owner); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !owner.MarketCrawlEnabled {
+		t.Fatalf("expected market crawl enabled: %+v", owner)
 	}
 }
 

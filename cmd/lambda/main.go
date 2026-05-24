@@ -99,9 +99,9 @@ func main() {
 	}
 
 	svc := application.NewService(repo, uuidGen{})
-	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{}, application.ParseCrawlerEmails(os.Getenv("MARKET_CRAWLER_EMAIL")))
 	profiles := profileapp.NewService(profileRepo)
-	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner)
+	marketLogs := application.NewMarketLogService(repo, marketLogRepo, uuidGen{}, application.ParseCrawlerEmails(os.Getenv("MARKET_CRAWLER_EMAIL")), profiles)
+	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"))
 
 	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, auth=%s, uploads=%t)", tableName, marketLogsTable, profilesTable, auth.AuthenticatorMode(), presigner != nil)
 	lambda.Start(handler.Handle)

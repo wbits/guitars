@@ -59,6 +59,26 @@ func TestCognitoJWTAuthenticator_AcceptsAccessToken(t *testing.T) {
 	}
 }
 
+func TestCognitoJWTAuthenticator_ParsesGroups(t *testing.T) {
+	authn, key := newTestCognitoAuthenticator(t)
+	token := signCognitoToken(t, key, jwt.MapClaims{
+		"iss":            authn.issuer,
+		"token_use":      "access",
+		"client_id":      "test-client-id",
+		"sub":            "admin-1",
+		"cognito:groups": []any{"guitars-admins"},
+		"exp":            time.Now().Add(time.Hour).Unix(),
+		"iat":            time.Now().Unix(),
+	})
+	p, err := authn.Authenticate(context.Background(), "Bearer "+token)
+	if err != nil {
+		t.Fatalf("expected valid access token, got %v", err)
+	}
+	if !IsAdmin(p, "guitars-admins") {
+		t.Fatalf("expected admin group, got %+v", p.Groups)
+	}
+}
+
 func TestCognitoJWTAuthenticator_AcceptsIDToken(t *testing.T) {
 	authn, key := newTestCognitoAuthenticator(t)
 	token := signCognitoToken(t, key, jwt.MapClaims{

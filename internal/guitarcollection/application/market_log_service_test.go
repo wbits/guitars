@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ func TestMarketLogService_AddAndList(t *testing.T) {
 	guitars := persistence.NewMemoryRepository()
 	logs := persistence.NewMemoryMarketLogRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
-	marketSvc := NewMarketLogService(guitars, logs, ids, nil)
+	marketSvc := NewMarketLogService(guitars, logs, ids, nil, nil)
 
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)
@@ -59,7 +60,8 @@ func TestMarketLogService_CrawlerCanWriteForOtherOwner(t *testing.T) {
 	logs := persistence.NewMemoryMarketLogRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
 	crawlerEmails := ParseCrawlerEmails("info@wbits.net")
-	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails)
+	crawlChecker := stubCrawlChecker{enabled: map[string]bool{"real-owner": true}}
+	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlChecker)
 
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)
@@ -82,6 +84,45 @@ func TestMarketLogService_CrawlerCanWriteForOtherOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestMarketLogService_CrawlerBlockedWhenMarketCrawlDisabled(t *testing.T) {
+	guitars := persistence.NewMemoryRepository()
+	logs := persistence.NewMemoryMarketLogRepository()
+	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
+	crawlerEmails := ParseCrawlerEmails("info@wbits.net")
+	crawlChecker := stubCrawlChecker{enabled: map[string]bool{"real-owner": false}}
+	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlChecker)
+
+	ctx := context.Background()
+	price, _ := domain.NewMoney(199900, domain.EUR)
+	g, err := domain.NewGuitar(domain.GuitarProps{
+		ID: "g-1", Owner: "real-owner", Brand: "Gibson", TypeName: "Les Paul", BuildYear: 2017, Price: price,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := guitars.Save(ctx, g); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = marketSvc.AddMarketLog(ctx, "crawler-sub", "info@wbits.net", "g-1", MarketLogInput{
+		Source:        "reverb",
+		Action:        "for_sale",
+		PriceAmount:   150000,
+		PriceCurrency: "EUR",
+	})
+	if !errors.Is(err, domain.ErrGuitarNotFound) {
+		t.Fatalf("want ErrGuitarNotFound, got %v", err)
+	}
+}
+
+type stubCrawlChecker struct {
+	enabled map[string]bool
+}
+
+func (s stubCrawlChecker) MarketCrawlEnabledForUser(_ context.Context, userID string) (bool, error) {
+	return s.enabled[userID], nil
 }
 
 type sequentialIDs struct {

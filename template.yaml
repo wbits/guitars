@@ -59,6 +59,7 @@ Globals:
         IMAGES_CDN_BASE_URL: !Ref ImagesCdnBaseUrl
         IMAGES_S3_PUBLIC_ENDPOINT: ""
         MARKET_CRAWLER_EMAIL: info@wbits.net
+        ADMIN_GROUP: guitars-admins
 
 Conditions:
   HasImagesBucket: !Not [!Equals [!Ref ImagesBucketName, ""]]
@@ -100,6 +101,13 @@ Resources:
     Properties:
       Domain: !Sub "guitars-${AWS::AccountId}"
       UserPoolId: !Ref GuitarsUserPool
+
+  GuitarsAdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: guitars-admins
+      UserPoolId: !Ref GuitarsUserPool
+      Description: Administrators who can manage market crawl settings for collections
 
   GuitarsTable:
     Type: AWS::DynamoDB::Table
@@ -274,6 +282,16 @@ Resources:
           Type: Api
           Properties:
             Path: /collections/{userId}/guitar
+            Method: options
+        PatchCollectionMarketCrawl:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/market-crawl
+            Method: patch
+        OptionsCollectionMarketCrawl:
+          Type: Api
+          Properties:
+            Path: /collections/{userId}/market-crawl
             Method: options
 
   ApiCertificate:

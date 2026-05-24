@@ -86,7 +86,11 @@ func (a *CognitoJWTAuthenticator) Authenticate(_ context.Context, header string)
 	if !ok || strings.TrimSpace(sub) == "" {
 		return Principal{}, ErrUnauthorized
 	}
-	return Principal{UserID: strings.TrimSpace(sub), Email: emailFromClaims(claims)}, nil
+	return Principal{
+		UserID: strings.TrimSpace(sub),
+		Email:  emailFromClaims(claims),
+		Groups: GroupsFromClaims(claims),
+	}, nil
 }
 
 func emailFromClaims(claims jwt.MapClaims) string {

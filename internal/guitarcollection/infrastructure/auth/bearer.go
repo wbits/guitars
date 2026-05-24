@@ -78,7 +78,7 @@ func (a *BearerAuthenticator) Authenticate(ctx context.Context, header string) (
 	if subtle.ConstantTimeCompare([]byte(expected), []byte(supplied)) != 1 {
 		return Principal{}, ErrUnauthorized
 	}
-	return Principal{UserID: bearerUserID(), Email: bearerEmail()}, nil
+	return Principal{UserID: bearerUserID(), Email: bearerEmail(), Groups: bearerGroups()}, nil
 }
 
 func (a *BearerAuthenticator) getToken(ctx context.Context) (string, error) {
@@ -160,4 +160,12 @@ func bearerUserID() string {
 		return id
 	}
 	return "local-dev-user"
+}
+
+func bearerGroups() []string {
+	raw := strings.TrimSpace(os.Getenv("LOCAL_DEV_ADMIN_GROUPS"))
+	if raw == "" {
+		return nil
+	}
+	return normalizeGroups(strings.Split(raw, ","))
 }

@@ -37,24 +37,27 @@ func NewDynamoRepository(client DynamoAPI, table, usernameIndex string) *DynamoR
 }
 
 type profileItem struct {
-	UserID   string `dynamodbav:"userId"`
-	Username string `dynamodbav:"username,omitempty"`
-	Email    string `dynamodbav:"email,omitempty"`
+	UserID             string `dynamodbav:"userId"`
+	Username           string `dynamodbav:"username,omitempty"`
+	Email              string `dynamodbav:"email,omitempty"`
+	MarketCrawlEnabled bool   `dynamodbav:"marketCrawlEnabled,omitempty"`
 }
 
 func toItem(profile *domain.Profile) profileItem {
 	return profileItem{
-		UserID:   profile.UserID(),
-		Username: profile.Username(),
-		Email:    profile.Email(),
+		UserID:             profile.UserID(),
+		Username:           profile.Username(),
+		Email:              profile.Email(),
+		MarketCrawlEnabled: profile.MarketCrawlEnabled(),
 	}
 }
 
 func (item profileItem) toDomain() (*domain.Profile, error) {
 	return domain.NewProfile(domain.ProfileProps{
-		UserID:   item.UserID,
-		Username: item.Username,
-		Email:    item.Email,
+		UserID:             item.UserID,
+		Username:           item.Username,
+		Email:              item.Email,
+		MarketCrawlEnabled: item.MarketCrawlEnabled,
 	})
 }
 

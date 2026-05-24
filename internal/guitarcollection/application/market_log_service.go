@@ -2,10 +2,15 @@ package application
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
+
+type marketCrawlChecker interface {
+	MarketCrawlEnabledForUser(ctx context.Context, userID string) (bool, error)
+}
 
 // MarketLogService coordinates market price log use cases.
 type MarketLogService struct {
@@ -14,6 +19,7 @@ type MarketLogService struct {
 	ids                 IDGenerator
 	clock               func() time.Time
 	marketCrawlerEmails map[string]struct{}
+	crawlChecker        marketCrawlChecker
 }
 
 // NewMarketLogService wires the market log application service.
@@ -22,6 +28,7 @@ func NewMarketLogService(
 	marketLogs domain.MarketLogRepository,
 	ids IDGenerator,
 	marketCrawlerEmails map[string]struct{},
+	crawlChecker marketCrawlChecker,
 ) *MarketLogService {
 	return &MarketLogService{
 		guitars:             guitars,
@@ -29,6 +36,7 @@ func NewMarketLogService(
 		ids:                 ids,
 		clock:               time.Now,
 		marketCrawlerEmails: marketCrawlerEmails,
+		crawlChecker:        crawlChecker,
 	}
 }
 
@@ -90,7 +98,14 @@ func (s *MarketLogService) ensureMarketLogWritable(ctx context.Context, callerID
 	if err != nil {
 		return err
 	}
-	if !MarketLogWritableBy(g, callerID, callerEmail, s.marketCrawlerEmails) {
+	ownerMarketCrawlEnabled := false
+	if ownerID := strings.TrimSpace(g.Owner()); ownerID != "" && s.crawlChecker != nil {
+		ownerMarketCrawlEnabled, err = s.crawlChecker.MarketCrawlEnabledForUser(ctx, ownerID)
+		if err != nil {
+			return err
+		}
+	}
+	if !MarketLogWritableBy(g, callerID, callerEmail, s.marketCrawlerEmails, ownerMarketCrawlEnabled) {
 		return domain.ErrGuitarNotFound
 	}
 	return nil
