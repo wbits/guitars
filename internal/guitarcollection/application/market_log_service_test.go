@@ -16,7 +16,7 @@ func TestMarketLogService_AddAndList(t *testing.T) {
 	guitars := persistence.NewMemoryRepository()
 	logs := persistence.NewMemoryMarketLogRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
-	marketSvc := NewMarketLogService(guitars, logs, ids, nil, nil)
+	marketSvc := NewMarketLogService(guitars, logs, ids, nil, nil, nil)
 
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)
@@ -60,8 +60,9 @@ func TestMarketLogService_CrawlerCanWriteForOtherOwner(t *testing.T) {
 	logs := persistence.NewMemoryMarketLogRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
 	crawlerEmails := ParseCrawlerEmails("info@wbits.net")
+	crawlerUserIDs := ParseCrawlerUserIDs("crawler-sub")
 	crawlChecker := stubCrawlChecker{enabled: map[string]bool{"real-owner": true}}
-	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlChecker)
+	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlerUserIDs, crawlChecker)
 
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)
@@ -91,8 +92,9 @@ func TestMarketLogService_CrawlerBlockedWhenMarketCrawlDisabled(t *testing.T) {
 	logs := persistence.NewMemoryMarketLogRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "ml-1"}}
 	crawlerEmails := ParseCrawlerEmails("info@wbits.net")
+	crawlerUserIDs := ParseCrawlerUserIDs("crawler-sub")
 	crawlChecker := stubCrawlChecker{enabled: map[string]bool{"real-owner": false}}
-	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlChecker)
+	marketSvc := NewMarketLogService(guitars, logs, ids, crawlerEmails, crawlerUserIDs, crawlChecker)
 
 	ctx := context.Background()
 	price, _ := domain.NewMoney(199900, domain.EUR)

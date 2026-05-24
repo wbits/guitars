@@ -198,8 +198,8 @@ Configure in the GitHub repo:
 The crawler account (`info@wbits.net` by default) may append market logs to
 guitars in collections where `marketCrawlEnabled` is true. It discovers
 collections via `GET /collections` and skips owners with the flag disabled.
-Set `MARKET_CRAWLER_EMAIL` on the API Lambda if you use a different crawler
-account email.
+Set `MARKET_CRAWLER_EMAIL` and `MARKET_CRAWLER_USER_ID` on the API Lambda if you use
+a different crawler account.
 
 To read the current password from AWS Secrets Manager (if you use it as the
 source of truth):

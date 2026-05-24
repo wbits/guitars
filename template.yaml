@@ -59,6 +59,7 @@ Globals:
         IMAGES_CDN_BASE_URL: !Ref ImagesCdnBaseUrl
         IMAGES_S3_PUBLIC_ENDPOINT: ""
         MARKET_CRAWLER_EMAIL: info@wbits.net
+        MARKET_CRAWLER_USER_ID: a3f4b8a2-d0e1-70a1-6ffb-287e81a377c0
         ADMIN_GROUP: guitars-admins
 
 Conditions:

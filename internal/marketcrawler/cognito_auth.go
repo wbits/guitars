@@ -25,7 +25,7 @@ func ResolveAPIToken(ctx context.Context) (string, error) {
 }
 
 // TokenFromCognito performs a Cognito USER_PASSWORD_AUTH sign-in and returns
-// the access token JWT.
+// the ID token JWT so email and group claims are available to the API.
 func TokenFromCognito(ctx context.Context) (string, error) {
 	region := strings.TrimSpace(os.Getenv("COGNITO_REGION"))
 	clientID := strings.TrimSpace(os.Getenv("COGNITO_CLIENT_ID"))
@@ -59,8 +59,8 @@ func TokenFromCognito(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cognito initiate auth: %w", err)
 	}
-	if out.AuthenticationResult == nil || out.AuthenticationResult.AccessToken == nil {
-		return "", fmt.Errorf("cognito initiate auth: missing access token")
+	if out.AuthenticationResult == nil || out.AuthenticationResult.IdToken == nil {
+		return "", fmt.Errorf("cognito initiate auth: missing id token")
 	}
-	return *out.AuthenticationResult.AccessToken, nil
+	return *out.AuthenticationResult.IdToken, nil
 }

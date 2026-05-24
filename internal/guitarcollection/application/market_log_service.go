@@ -18,8 +18,9 @@ type MarketLogService struct {
 	marketLogs          domain.MarketLogRepository
 	ids                 IDGenerator
 	clock               func() time.Time
-	marketCrawlerEmails map[string]struct{}
-	crawlChecker        marketCrawlChecker
+	marketCrawlerEmails  map[string]struct{}
+	marketCrawlerUserIDs map[string]struct{}
+	crawlChecker         marketCrawlChecker
 }
 
 // NewMarketLogService wires the market log application service.
@@ -28,15 +29,17 @@ func NewMarketLogService(
 	marketLogs domain.MarketLogRepository,
 	ids IDGenerator,
 	marketCrawlerEmails map[string]struct{},
+	marketCrawlerUserIDs map[string]struct{},
 	crawlChecker marketCrawlChecker,
 ) *MarketLogService {
 	return &MarketLogService{
-		guitars:             guitars,
-		marketLogs:          marketLogs,
-		ids:                 ids,
-		clock:               time.Now,
-		marketCrawlerEmails: marketCrawlerEmails,
-		crawlChecker:        crawlChecker,
+		guitars:              guitars,
+		marketLogs:           marketLogs,
+		ids:                  ids,
+		clock:                time.Now,
+		marketCrawlerEmails:  marketCrawlerEmails,
+		marketCrawlerUserIDs: marketCrawlerUserIDs,
+		crawlChecker:         crawlChecker,
 	}
 }
 
@@ -105,7 +108,7 @@ func (s *MarketLogService) ensureMarketLogWritable(ctx context.Context, callerID
 			return err
 		}
 	}
-	if !MarketLogWritableBy(g, callerID, callerEmail, s.marketCrawlerEmails, ownerMarketCrawlEnabled) {
+	if !MarketLogWritableBy(g, callerID, callerEmail, s.marketCrawlerEmails, s.marketCrawlerUserIDs, ownerMarketCrawlEnabled) {
 		return domain.ErrGuitarNotFound
 	}
 	return nil

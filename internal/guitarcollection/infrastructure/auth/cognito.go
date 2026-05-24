@@ -97,7 +97,7 @@ func emailFromClaims(claims jwt.MapClaims) string {
 	if email, ok := claims["email"].(string); ok && strings.TrimSpace(email) != "" {
 		return strings.TrimSpace(email)
 	}
-	if username, ok := claims["username"].(string); ok && strings.TrimSpace(username) != "" {
+	if username, ok := claims["username"].(string); ok && strings.Contains(username, "@") {
 		return strings.TrimSpace(username)
 	}
 	return ""
