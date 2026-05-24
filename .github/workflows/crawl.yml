@@ -70,6 +70,11 @@ jobs:
             echo "::error::Set the COGNITO_CRAWLER_PASSWORD repository secret to match the Cognito user password."
             exit 1
           fi
+          if [ -z "${EBAY_CLIENT_ID:-}" ] || [ -z "${EBAY_CLIENT_SECRET:-}" ]; then
+            echo "::warning::EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are not set; the crawler will skip eBay."
+          else
+            echo "eBay credentials configured."
+          fi
 
       - name: Verify Cognito sign-in
         run: |

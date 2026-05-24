@@ -183,7 +183,7 @@ optionally eBay/Marktplaats) and uploads price observations to the API.
 | ------- | ---- |
 | Schedule | Every Sunday 06:00 UTC |
 | Manual | Actions → Market crawl → Run workflow |
-| Push | Changes under `cmd/crawler/` only |
+| Push | Changes under `cmd/crawler/` or `internal/marketcrawler/` |
 
 Configure in the GitHub repo:
 
@@ -194,6 +194,8 @@ Configure in the GitHub repo:
 | Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
+| Secret | `EBAY_CLIENT_ID` | eBay production app client ID (optional; without it eBay is skipped) |
+| Secret | `EBAY_CLIENT_SECRET` | eBay production app client secret (optional) |
 
 The crawler account (`info@wbits.net` by default) may append market logs to
 guitars in collections where `marketCrawlEnabled` is true. When a listing

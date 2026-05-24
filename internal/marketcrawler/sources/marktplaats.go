@@ -16,9 +16,8 @@ import (
 
 var (
 	// Marktplaats separates € from the amount with a non-breaking space; Go's \s does not match \u00a0.
-	marktplaatsPriceRe = regexp.MustCompile("€(?:\\s|\u00a0)*([0-9][0-9.,]*)")
-	marktplaatsLinkRe  = regexp.MustCompile(`href="(/v/[^"]+)"`)
-	marktplaatsImageRe = regexp.MustCompile(`https://images\.marktplaats\.com/api/v1/[^"'\\]+`)
+	marktplaatsListingRe = regexp.MustCompile(`(?s)href="(/v/[^"]+)"[^>]*>.*?class="[^"]*hz-Listing-title[^"]*"[^>]*>([^<]+)</.*?€(?:\s|` + "\u00a0" + `)*([0-9][0-9.,]*)`)
+	marktplaatsImageRe     = regexp.MustCompile(`https://images\.marktplaats\.com/api/v1/[^"'\\]+`)
 )
 
 // Marktplaats searches marktplaats.nl by scraping the public search results page.
@@ -46,8 +45,20 @@ func (m *Marktplaats) limit() int {
 
 // Search returns for-sale listings scraped from marktplaats.nl search results.
 func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSummary) ([]marketcrawler.Finding, error) {
-	query := marketcrawler.SearchQuery(guitar)
-	slug := strings.ReplaceAll(strings.ToLower(query), " ", "-")
+	for _, query := range marketcrawler.SearchQueries(guitar) {
+		findings, err := m.searchQuery(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		if len(findings) > 0 {
+			return findings, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *Marktplaats) searchQuery(ctx context.Context, query string) ([]marketcrawler.Finding, error) {
+	slug := marktplaatsQuerySlug(query)
 	u := fmt.Sprintf("https://www.marktplaats.nl/q/%s/", url.PathEscape(slug))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -72,28 +83,26 @@ func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSum
 	}
 	html := string(htmlBytes)
 
-	prices := marktplaatsPriceRe.FindAllStringSubmatch(html, -1)
-	links := marktplaatsLinkRe.FindAllStringSubmatch(html, -1)
-	images := marktplaatsImageRe.FindAllString(html, -1)
-	if len(prices) == 0 {
+	listings := marktplaatsListingRe.FindAllStringSubmatch(html, -1)
+	if len(listings) == 0 {
 		return nil, nil
 	}
+	images := marktplaatsImageRe.FindAllString(html, -1)
 
 	now := time.Now().UTC()
 	limit := m.limit()
-	if len(prices) < limit {
-		limit = len(prices)
+	if len(listings) < limit {
+		limit = len(listings)
 	}
 	out := make([]marketcrawler.Finding, 0, limit)
 	for i := 0; i < limit; i++ {
-		amount, ok := parseEuroMinor(prices[i][1])
+		link := strings.TrimSpace(listings[i][1])
+		title := strings.TrimSpace(listings[i][2])
+		amount, ok := parseEuroMinor(listings[i][3])
 		if !ok {
 			continue
 		}
-		listingURL := ""
-		if i < len(links) {
-			listingURL = "https://www.marktplaats.nl" + links[i][1]
-		}
+		listingURL := "https://www.marktplaats.nl" + link
 		sourceImageURL := ""
 		if i < len(images) {
 			sourceImageURL = images[i]
@@ -104,13 +113,20 @@ func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSum
 			PriceAmount:       amount,
 			PriceCurrency:     "EUR",
 			ListingURL:        listingURL,
-			ListingTitle:      query,
+			ListingTitle:      title,
 			ExternalListingID: listingURL,
 			SourceImageURL:    sourceImageURL,
 			ObservedAt:        now,
 		})
 	}
 	return out, nil
+}
+
+func marktplaatsQuerySlug(query string) string {
+	slug := strings.ToLower(strings.TrimSpace(query))
+	slug = strings.NewReplacer("'", "", "’", "", "`", "").Replace(slug)
+	slug = strings.Join(strings.Fields(slug), "-")
+	return slug
 }
 
 func parseEuroMinor(raw string) (int64, bool) {

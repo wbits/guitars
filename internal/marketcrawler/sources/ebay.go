@@ -68,7 +68,19 @@ func (e *Ebay) Search(ctx context.Context, guitar marketcrawler.GuitarSummary) (
 	if err != nil {
 		return nil, err
 	}
-	query := marketcrawler.SearchQuery(guitar)
+	for _, query := range marketcrawler.SearchQueries(guitar) {
+		findings, err := e.searchQuery(ctx, token, query)
+		if err != nil {
+			return nil, err
+		}
+		if len(findings) > 0 {
+			return findings, nil
+		}
+	}
+	return nil, nil
+}
+
+func (e *Ebay) searchQuery(ctx context.Context, token, query string) ([]marketcrawler.Finding, error) {
 	u, err := url.Parse(ebaySearchURL)
 	if err != nil {
 		return nil, err
