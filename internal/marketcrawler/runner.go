@@ -59,6 +59,11 @@ func (r *Runner) RunGuitar(ctx context.Context, guitar GuitarSummary) error {
 		logger.Printf("source %s guitar %s: %d findings", source.Name(), guitar.ID, len(findings))
 		all = append(all, findings...)
 	}
+	beforeDedupe := len(all)
+	all = DedupeFindingsPerRun(all)
+	if beforeDedupe != len(all) {
+		logger.Printf("guitar %s: deduped %d findings to %d", guitar.ID, beforeDedupe, len(all))
+	}
 	if r.Images != nil {
 		for i := range all {
 			if strings.TrimSpace(all[i].SourceImageURL) == "" {

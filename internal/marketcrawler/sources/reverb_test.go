@@ -49,14 +49,15 @@ func TestReverb_Search_ParsesLiveListing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	findings = marketcrawler.DedupeFindingsPerRun(findings)
 	if calls != 2 {
 		t.Fatalf("want 2 API calls (live + sold), got %d", calls)
 	}
-	if len(findings) != 2 {
-		t.Fatalf("want 2 findings, got %d", len(findings))
+	if len(findings) != 1 {
+		t.Fatalf("want 1 deduped finding, got %d", len(findings))
 	}
-	if findings[0].Action != "for_sale" {
-		t.Fatalf("want for_sale, got %s", findings[0].Action)
+	if findings[0].Action != "sold" {
+		t.Fatalf("want sold when live and sold searches overlap, got %s", findings[0].Action)
 	}
 	if findings[0].PriceAmount != 1211567 {
 		t.Fatalf("want 1211567 cents, got %d", findings[0].PriceAmount)
