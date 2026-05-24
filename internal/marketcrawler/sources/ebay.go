@@ -103,6 +103,7 @@ func (e *Ebay) Search(ctx context.Context, guitar marketcrawler.GuitarSummary) (
 			ListingURL:        strings.TrimSpace(item.ItemWebURL),
 			ListingTitle:      strings.TrimSpace(item.Title),
 			ExternalListingID: strings.TrimSpace(item.ItemID),
+			SourceImageURL:    item.imageURL(),
 			ObservedAt:        now,
 		})
 	}
@@ -168,10 +169,20 @@ type ebayItemSummary struct {
 	ItemID     string `json:"itemId"`
 	Title      string `json:"title"`
 	ItemWebURL string `json:"itemWebUrl"`
+	Image      *struct {
+		ImageURL string `json:"imageUrl"`
+	} `json:"image"`
 	Price      *struct {
 		Value    string `json:"value"`
 		Currency string `json:"currency"`
 	} `json:"price"`
+}
+
+func (i ebayItemSummary) imageURL() string {
+	if i.Image == nil {
+		return ""
+	}
+	return strings.TrimSpace(i.Image.ImageURL)
 }
 
 func (i ebayItemSummary) priceMinorUnits() (int64, string, bool) {

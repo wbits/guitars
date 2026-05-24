@@ -45,6 +45,7 @@ type marketLogItem struct {
 	ListingURL        string `dynamodbav:"listingUrl,omitempty"`
 	ListingTitle      string `dynamodbav:"listingTitle,omitempty"`
 	ExternalListingID string `dynamodbav:"externalListingId,omitempty"`
+	ListingImageURL   string `dynamodbav:"listingImageUrl,omitempty"`
 }
 
 func marketLogToItem(log *domain.MarketLog) marketLogItem {
@@ -59,6 +60,7 @@ func marketLogToItem(log *domain.MarketLog) marketLogItem {
 		ListingURL:        log.ListingURL(),
 		ListingTitle:      log.ListingTitle(),
 		ExternalListingID: log.ExternalListingID(),
+		ListingImageURL:   log.ListingImageURL(),
 	}
 }
 
@@ -81,6 +83,7 @@ func (i marketLogItem) toDomain() (*domain.MarketLog, error) {
 		ListingURL:        i.ListingURL,
 		ListingTitle:      i.ListingTitle,
 		ExternalListingID: i.ExternalListingID,
+		ListingImageURL:   i.ListingImageURL,
 	})
 }
 

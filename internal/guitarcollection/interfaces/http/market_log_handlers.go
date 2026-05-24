@@ -96,6 +96,7 @@ func marketLogRequestToInput(req marketLogRequest) (application.MarketLogInput, 
 		ListingURL:        req.ListingURL,
 		ListingTitle:      req.ListingTitle,
 		ExternalListingID: req.ExternalListingID,
+		ListingImageURL:   req.ListingImageURL,
 	}, nil
 }
 

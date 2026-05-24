@@ -4,13 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // Runner coordinates source adapters and uploads findings to the API.
 type Runner struct {
 	API     *APIClient
 	Sources []Source
+	Images  ImageUploader
 	Logger  *log.Logger
+}
+
+// ImageUploader stores listing images on the collection CDN.
+type ImageUploader interface {
+	Upload(ctx context.Context, sourceURL string) (cdnURL string, err error)
 }
 
 // RunAll crawls every guitar in the collection.
@@ -51,6 +58,19 @@ func (r *Runner) RunGuitar(ctx context.Context, guitar GuitarSummary) error {
 		}
 		logger.Printf("source %s guitar %s: %d findings", source.Name(), guitar.ID, len(findings))
 		all = append(all, findings...)
+	}
+	if r.Images != nil {
+		for i := range all {
+			if strings.TrimSpace(all[i].SourceImageURL) == "" {
+				continue
+			}
+			cdnURL, err := r.Images.Upload(ctx, all[i].SourceImageURL)
+			if err != nil {
+				logger.Printf("image guitar %s listing %s: %v", guitar.ID, all[i].ExternalListingID, err)
+				continue
+			}
+			all[i].ListingImageURL = cdnURL
+		}
 	}
 	if err := r.API.UploadMarketLogs(ctx, guitar.ID, all); err != nil {
 		return err

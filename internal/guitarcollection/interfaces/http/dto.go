@@ -58,6 +58,7 @@ func toResponse(g *domain.Guitar) guitarResponse {
 // presignUploadRequest is the JSON payload for POST /upload/presign.
 type presignUploadRequest struct {
 	ContentType string `json:"contentType"`
+	Purpose     string `json:"purpose,omitempty"`
 }
 
 // presignUploadResponse is returned so the client can PUT directly to S3.
@@ -135,6 +136,7 @@ type marketLogRequest struct {
 	ListingURL        string `json:"listingUrl,omitempty"`
 	ListingTitle      string `json:"listingTitle,omitempty"`
 	ExternalListingID string `json:"externalListingId,omitempty"`
+	ListingImageURL   string `json:"listingImageUrl,omitempty"`
 }
 
 // marketLogResponse is the JSON projection of a MarketLog aggregate.
@@ -149,6 +151,7 @@ type marketLogResponse struct {
 	ListingURL        string `json:"listingUrl,omitempty"`
 	ListingTitle      string `json:"listingTitle,omitempty"`
 	ExternalListingID string `json:"externalListingId,omitempty"`
+	ListingImageURL   string `json:"listingImageUrl,omitempty"`
 }
 
 func toMarketLogResponse(log *domain.MarketLog) marketLogResponse {
@@ -163,5 +166,6 @@ func toMarketLogResponse(log *domain.MarketLog) marketLogResponse {
 		ListingURL:        log.ListingURL(),
 		ListingTitle:      log.ListingTitle(),
 		ExternalListingID: log.ExternalListingID(),
+		ListingImageURL:   log.ListingImageURL(),
 	}
 }

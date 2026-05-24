@@ -133,5 +133,6 @@ func (s *MarketLogService) buildMarketLog(guitarID string, in MarketLogInput) (*
 		ListingURL:        in.ListingURL,
 		ListingTitle:      in.ListingTitle,
 		ExternalListingID: in.ExternalListingID,
+		ListingImageURL:   in.ListingImageURL,
 	})
 }

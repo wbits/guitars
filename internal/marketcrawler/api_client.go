@@ -138,6 +138,9 @@ func (c *APIClient) UploadMarketLogs(ctx context.Context, guitarID string, findi
 		if f.ExternalListingID != "" {
 			entry["externalListingId"] = f.ExternalListingID
 		}
+		if f.ListingImageURL != "" {
+			entry["listingImageUrl"] = f.ListingImageURL
+		}
 		payload = append(payload, entry)
 	}
 	body, err := json.Marshal(payload)
@@ -160,6 +163,51 @@ func (c *APIClient) UploadMarketLogs(ctx context.Context, guitarID string, findi
 		return apiError(resp)
 	}
 	return nil
+}
+
+type presignUploadRequestBody struct {
+	ContentType string `json:"contentType"`
+	Purpose     string `json:"purpose,omitempty"`
+}
+
+type presignUploadResponseBody struct {
+	UploadURL string `json:"uploadUrl"`
+	PublicURL string `json:"publicUrl"`
+}
+
+// PresignUpload requests a presigned PUT URL for a market-log listing thumbnail.
+func (c *APIClient) PresignUpload(ctx context.Context, contentType string) (uploadURL, publicURL string, err error) {
+	body, err := json.Marshal(presignUploadRequestBody{
+		ContentType: contentType,
+		Purpose:     "market-log",
+	})
+	if err != nil {
+		return "", "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/upload/presign", bytes.NewReader(body))
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	c.applyAuth(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return "", "", apiError(resp)
+	}
+	var out presignUploadResponseBody
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", "", err
+	}
+	uploadURL = strings.TrimSpace(out.UploadURL)
+	publicURL = strings.TrimSpace(out.PublicURL)
+	if uploadURL == "" || publicURL == "" {
+		return "", "", fmt.Errorf("presign response missing urls")
+	}
+	return uploadURL, publicURL, nil
 }
 
 func (c *APIClient) applyAuth(req *http.Request) {

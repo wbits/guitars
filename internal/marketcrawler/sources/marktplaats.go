@@ -16,7 +16,8 @@ import (
 
 var (
 	marktplaatsPriceRe = regexp.MustCompile(`€\s*([0-9][0-9.,]*)`)
-	marktplaatsLinkRe   = regexp.MustCompile(`href="(/v/[^"]+)"`)
+	marktplaatsLinkRe  = regexp.MustCompile(`href="(/v/[^"]+)"`)
+	marktplaatsImageRe = regexp.MustCompile(`https://images\.marktplaats\.com/api/v1/[^"'\\]+`)
 )
 
 // Marktplaats searches marktplaats.nl by scraping the public search results page.
@@ -72,6 +73,7 @@ func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSum
 
 	prices := marktplaatsPriceRe.FindAllStringSubmatch(html, -1)
 	links := marktplaatsLinkRe.FindAllStringSubmatch(html, -1)
+	images := marktplaatsImageRe.FindAllString(html, -1)
 	if len(prices) == 0 {
 		return nil, nil
 	}
@@ -91,6 +93,10 @@ func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSum
 		if i < len(links) {
 			listingURL = "https://www.marktplaats.nl" + links[i][1]
 		}
+		sourceImageURL := ""
+		if i < len(images) {
+			sourceImageURL = images[i]
+		}
 		out = append(out, marketcrawler.Finding{
 			Source:            "marktplaats",
 			Action:            "for_sale",
@@ -99,6 +105,7 @@ func (m *Marktplaats) Search(ctx context.Context, guitar marketcrawler.GuitarSum
 			ListingURL:        listingURL,
 			ListingTitle:      query,
 			ExternalListingID: listingURL,
+			SourceImageURL:    sourceImageURL,
 			ObservedAt:        now,
 		})
 	}

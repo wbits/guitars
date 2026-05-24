@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/wbits/guitars/internal/marketcrawler"
+	"github.com/wbits/guitars/internal/marketcrawler/images"
 	"github.com/wbits/guitars/internal/marketcrawler/sources"
 )
 
@@ -53,6 +54,7 @@ func main() {
 	runner := &marketcrawler.Runner{
 		API:     client,
 		Sources: srcs,
+		Images:  images.NewUploaderFromAPI(client),
 		Logger:  logger,
 	}
 

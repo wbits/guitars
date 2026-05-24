@@ -12,7 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const keyPrefix = "images/guitars"
+const (
+	guitarKeyPrefix    = "images/guitars"
+	marketLogKeyPrefix = "images/market-logs"
+)
 
 var allowedContentTypes = map[string]string{
 	"image/jpeg": ".jpg",
@@ -53,13 +56,22 @@ func NewPresigner(client *s3.Client, bucket, cdnBaseURL, publicS3BaseURL string)
 // PresignPut validates contentType and returns a short-lived PUT URL plus the
 // stable public URL clients should store on the guitar record.
 func (p *Presigner) PresignPut(ctx context.Context, contentType string) (*PresignResult, error) {
+	return p.presignPut(ctx, guitarKeyPrefix, contentType)
+}
+
+// PresignMarketLogImage returns a presigned PUT URL for a crawled listing thumbnail.
+func (p *Presigner) PresignMarketLogImage(ctx context.Context, contentType string) (*PresignResult, error) {
+	return p.presignPut(ctx, marketLogKeyPrefix, contentType)
+}
+
+func (p *Presigner) presignPut(ctx context.Context, prefix, contentType string) (*PresignResult, error) {
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	ext, ok := allowedContentTypes[contentType]
 	if !ok {
 		return nil, fmt.Errorf("unsupported content type %q", contentType)
 	}
 
-	key := fmt.Sprintf("%s/%s%s", keyPrefix, uuid.NewString(), ext)
+	key := fmt.Sprintf("%s/%s%s", prefix, uuid.NewString(), ext)
 
 	out, err := p.presign.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(p.bucket),

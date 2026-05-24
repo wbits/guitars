@@ -32,6 +32,18 @@ func TestNewMarketLog_AcceptsForSaleAndSold(t *testing.T) {
 	}
 }
 
+func TestNewMarketLog_AcceptsListingImageURL(t *testing.T) {
+	p := validMarketLogProps()
+	p.ListingImageURL = "https://cdn.example/images/market-logs/thumb.jpg"
+	log, err := NewMarketLog(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if log.ListingImageURL() != p.ListingImageURL {
+		t.Fatalf("want image url, got %q", log.ListingImageURL())
+	}
+}
+
 func TestNewMarketLog_RejectsUnknownSource(t *testing.T) {
 	p := validMarketLogProps()
 	p.Source = "unknown"

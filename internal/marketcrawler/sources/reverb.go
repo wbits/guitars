@@ -103,6 +103,7 @@ func (r *Reverb) fetch(ctx context.Context, query string, soldOnly bool) ([]mark
 			ListingURL:        listing.webURL(),
 			ListingTitle:      strings.TrimSpace(listing.Title),
 			ExternalListingID: strconv.FormatInt(listing.ID, 10),
+			SourceImageURL:    listing.imageURL(),
 			ObservedAt:        now,
 		})
 	}
@@ -129,6 +130,30 @@ type reverbListing struct {
 		Amount      json.Number `json:"amount"`
 		Currency    string      `json:"currency"`
 	} `json:"price"`
+	Photos []reverbPhoto `json:"photos"`
+}
+
+type reverbPhoto struct {
+	Links struct {
+		Thumbnail struct {
+			Href string `json:"href"`
+		} `json:"thumbnail"`
+		LargeCrop struct {
+			Href string `json:"href"`
+		} `json:"large_crop"`
+	} `json:"_links"`
+}
+
+func (l reverbListing) imageURL() string {
+	for _, photo := range l.Photos {
+		if href := strings.TrimSpace(photo.Links.LargeCrop.Href); href != "" {
+			return href
+		}
+		if href := strings.TrimSpace(photo.Links.Thumbnail.Href); href != "" {
+			return href
+		}
+	}
+	return ""
 }
 
 func (l reverbListing) webURL() string {

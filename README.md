@@ -196,8 +196,11 @@ Configure in the GitHub repo:
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
 
 The crawler account (`info@wbits.net` by default) may append market logs to
-guitars in collections where `marketCrawlEnabled` is true. It discovers
-collections via `GET /collections` and skips owners with the flag disabled.
+guitars in collections where `marketCrawlEnabled` is true. When a listing
+includes a photo, the crawler center-crops a 256×256 JPEG thumbnail, uploads
+it to the CDN under `images/market-logs/`, and stores the URL as
+`listingImageUrl` on the market log. It discovers collections via
+`GET /collections` and skips owners with the flag disabled.
 Set `MARKET_CRAWLER_EMAIL` and `MARKET_CRAWLER_USER_ID` on the API Lambda if you use
 a different crawler account.
 

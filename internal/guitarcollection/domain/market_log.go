@@ -40,6 +40,7 @@ type MarketLog struct {
 	listingURL        string
 	listingTitle      string
 	externalListingID string
+	listingImageURL   string
 }
 
 // MarketLogProps is the data-transfer shape used to create a MarketLog.
@@ -53,6 +54,7 @@ type MarketLogProps struct {
 	ListingURL        string
 	ListingTitle      string
 	ExternalListingID string
+	ListingImageURL   string
 }
 
 // NewMarketLog validates props and returns a MarketLog.
@@ -82,6 +84,11 @@ func NewMarketLog(p MarketLogProps) (*MarketLog, error) {
 			return nil, newValidationError("listingUrl", "must be a valid absolute URL")
 		}
 	}
+	if strings.TrimSpace(p.ListingImageURL) != "" {
+		if _, err := validatePictureURLs([]string{p.ListingImageURL}); err != nil {
+			return nil, newValidationError("listingImageUrl", "must be a valid absolute URL")
+		}
+	}
 	return &MarketLog{
 		id:                strings.TrimSpace(p.ID),
 		guitarID:          strings.TrimSpace(p.GuitarID),
@@ -92,6 +99,7 @@ func NewMarketLog(p MarketLogProps) (*MarketLog, error) {
 		listingURL:        strings.TrimSpace(p.ListingURL),
 		listingTitle:      strings.TrimSpace(p.ListingTitle),
 		externalListingID: strings.TrimSpace(p.ExternalListingID),
+		listingImageURL:   strings.TrimSpace(p.ListingImageURL),
 	}, nil
 }
 
@@ -104,3 +112,4 @@ func (m *MarketLog) Price() Money              { return m.price }
 func (m *MarketLog) ListingURL() string        { return m.listingURL }
 func (m *MarketLog) ListingTitle() string      { return m.listingTitle }
 func (m *MarketLog) ExternalListingID() string { return m.externalListingID }
+func (m *MarketLog) ListingImageURL() string   { return m.listingImageURL }

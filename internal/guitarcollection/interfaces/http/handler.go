@@ -279,7 +279,13 @@ func (h *Handler) presignUpload(ctx context.Context, body string) (events.APIGat
 		return jsonResponse(400, errorResponse{Error: "contentType is required"})
 	}
 
-	result, err := h.presigner.PresignPut(ctx, req.ContentType)
+	var result *storage.PresignResult
+	var err error
+	if strings.EqualFold(strings.TrimSpace(req.Purpose), "market-log") {
+		result, err = h.presigner.PresignMarketLogImage(ctx, req.ContentType)
+	} else {
+		result, err = h.presigner.PresignPut(ctx, req.ContentType)
+	}
 	if err != nil {
 		return jsonResponse(400, errorResponse{Error: err.Error()})
 	}

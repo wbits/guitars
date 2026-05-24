@@ -34,5 +34,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.3 // indirect
 	github.com/aws/smithy-go v1.25.1 // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 )

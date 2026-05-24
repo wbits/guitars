@@ -12,4 +12,5 @@ type MarketLogInput struct {
 	ListingURL        string
 	ListingTitle      string
 	ExternalListingID string
+	ListingImageURL   string
 }

@@ -11,6 +11,8 @@ type Finding struct {
 	ListingURL        string
 	ListingTitle      string
 	ExternalListingID string
+	SourceImageURL    string
+	ListingImageURL   string
 	ObservedAt        time.Time
 }
 

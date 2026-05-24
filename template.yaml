@@ -186,7 +186,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${ImagesBucketName}/images/guitars/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ImagesBucketName}/images/guitars/*'
+                  - !Sub 'arn:aws:s3:::${ImagesBucketName}/images/market-logs/*'
           - !Ref AWS::NoValue
       Events:
         ListGuitars:
