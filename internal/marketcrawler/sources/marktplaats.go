@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	marktplaatsPriceRe = regexp.MustCompile(`€\s*([0-9][0-9.,]*)`)
+	// Marktplaats separates € from the amount with a non-breaking space; Go's \s does not match \u00a0.
+	marktplaatsPriceRe = regexp.MustCompile("€(?:\\s|\u00a0)*([0-9][0-9.,]*)")
 	marktplaatsLinkRe  = regexp.MustCompile(`href="(/v/[^"]+)"`)
 	marktplaatsImageRe = regexp.MustCompile(`https://images\.marktplaats\.com/api/v1/[^"'\\]+`)
 )

@@ -35,8 +35,20 @@ type Ebay struct {
 
 func (e *Ebay) Name() string { return "ebay" }
 
-func (e *Ebay) configured() bool {
+// Configured reports whether eBay API credentials are present.
+func (e *Ebay) Configured() bool {
 	return strings.TrimSpace(e.ClientID) != "" && strings.TrimSpace(e.ClientSecret) != ""
+}
+
+func (e *Ebay) configured() bool {
+	return e.Configured()
+}
+
+func (e *Ebay) marketplaceID() string {
+	if id := strings.TrimSpace(os.Getenv("EBAY_MARKETPLACE_ID")); id != "" {
+		return id
+	}
+	return "EBAY_NL"
 }
 
 func (e *Ebay) client() *http.Client {
@@ -72,6 +84,7 @@ func (e *Ebay) Search(ctx context.Context, guitar marketcrawler.GuitarSummary) (
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-EBAY-C-MARKETPLACE-ID", e.marketplaceID())
 
 	resp, err := e.client().Do(req)
 	if err != nil {
@@ -125,7 +138,7 @@ func (e *Ebay) accessToken(ctx context.Context) (string, error) {
 	}
 	form := url.Values{}
 	form.Set("grant_type", "client_credentials")
-	form.Set("scope", "https://api.ebay.com/oauth/api_scope")
+	form.Set("scope", "https://api.ebay.com/oauth/api_scope/buy.item.browse")
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ebayTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err

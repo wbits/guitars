@@ -42,7 +42,13 @@ func main() {
 		srcs = append(srcs, &sources.Reverb{})
 	}
 	if !*skipEbay {
-		srcs = append(srcs, sources.NewEbayFromEnv())
+		ebay := sources.NewEbayFromEnv()
+		if ebay.Configured() {
+			srcs = append(srcs, ebay)
+			logger.Print("ebay: enabled")
+		} else {
+			logger.Print("ebay: skipped (set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET to enable)")
+		}
 	}
 	if !*skipMarktplaats {
 		srcs = append(srcs, &sources.Marktplaats{})
