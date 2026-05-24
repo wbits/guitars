@@ -91,6 +91,7 @@ localstack-init:
 api: build
 	$(SAM) local start-api \
 	    --docker-network guitars-net \
+	    --warm-containers EAGER \
 	    --parameter-overrides \
 	        TableName=$(GUITARS_TABLE) \
 	        MarketLogsTableName=$(MARKET_LOGS_TABLE) \

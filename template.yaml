@@ -57,6 +57,7 @@ Globals:
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
         IMAGES_BUCKET: !Ref ImagesBucketName
         IMAGES_CDN_BASE_URL: !Ref ImagesCdnBaseUrl
+        IMAGES_S3_PUBLIC_ENDPOINT: ""
 
 Conditions:
   HasImagesBucket: !Not [!Equals [!Ref ImagesBucketName, ""]]

@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -74,12 +75,18 @@ func main() {
 		if cdnBase == "" {
 			log.Fatal("IMAGES_CDN_BASE_URL is required when IMAGES_BUCKET is set")
 		}
+		publicS3BaseURL := os.Getenv("IMAGES_S3_PUBLIC_ENDPOINT")
+		if publicS3BaseURL == "" && os.Getenv("AWS_ENDPOINT_URL") != "" {
+			if u, err := url.Parse(cdnBase); err == nil && u.Scheme != "" && u.Host != "" {
+				publicS3BaseURL = u.Scheme + "://" + u.Host
+			}
+		}
 		s3Client := s3.NewFromConfig(awsCfg, s3Opts...)
 		presigner = storage.NewPresigner(
 			s3Client,
 			bucket,
 			cdnBase,
-			os.Getenv("IMAGES_S3_PUBLIC_ENDPOINT"),
+			publicS3BaseURL,
 		)
 	}
 

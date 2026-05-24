@@ -87,7 +87,12 @@ CORS_CONFIG=$(cat <<EOF
     {
       "AllowedHeaders": ["*"],
       "AllowedMethods": ["GET", "PUT", "HEAD"],
-      "AllowedOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "AllowedOrigins": [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
+      ],
       "ExposeHeaders": ["ETag"],
       "MaxAgeSeconds": 3600
     }
