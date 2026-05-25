@@ -308,6 +308,9 @@ func (h *Handler) presignUpload(ctx context.Context, body string) (events.APIGat
 func requestToInput(r guitarRequest) application.GuitarInput {
 	return application.GuitarInput{
 		SerialNumber:      r.SerialNumber,
+		Color:             r.Color,
+		Country:           r.Country,
+		Factory:           r.Factory,
 		Pictures:          r.Pictures,
 		CoverPictureIndex: r.CoverPictureIndex,
 		Description:       r.Description,

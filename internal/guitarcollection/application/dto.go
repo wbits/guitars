@@ -5,6 +5,9 @@ package application
 // service be driven from a CLI, a test harness, or a future gRPC layer.
 type GuitarInput struct {
 	SerialNumber      string
+	Color             string
+	Country           string
+	Factory           string
 	Pictures          []string
 	CoverPictureIndex int
 	Description       string

@@ -21,6 +21,9 @@ type Guitar struct {
 	id                string
 	owner             string
 	serialNumber      string
+	color             string
+	country           string
+	factory           string
 	pictures          []string
 	coverPictureIndex int
 	description       string
@@ -36,6 +39,9 @@ type GuitarProps struct {
 	ID                string
 	Owner             string
 	SerialNumber      string
+	Color             string
+	Country           string
+	Factory           string
 	Pictures          []string
 	CoverPictureIndex int
 	Description       string
@@ -80,6 +86,9 @@ func NewGuitar(p GuitarProps) (*Guitar, error) {
 		id:                strings.TrimSpace(p.ID),
 		owner:             strings.TrimSpace(p.Owner),
 		serialNumber:      strings.TrimSpace(p.SerialNumber),
+		color:             strings.TrimSpace(p.Color),
+		country:           strings.TrimSpace(p.Country),
+		factory:           strings.TrimSpace(p.Factory),
 		pictures:          pictures,
 		coverPictureIndex: coverIndex,
 		description:       strings.TrimSpace(p.Description),
@@ -147,6 +156,9 @@ func itoa(i int) string {
 func (g *Guitar) ID() string           { return g.id }
 func (g *Guitar) Owner() string        { return g.owner }
 func (g *Guitar) SerialNumber() string { return g.serialNumber }
+func (g *Guitar) Color() string        { return g.color }
+func (g *Guitar) Country() string      { return g.country }
+func (g *Guitar) Factory() string      { return g.factory }
 func (g *Guitar) Pictures() []string {
 	out := make([]string, len(g.pictures))
 	copy(out, g.pictures)

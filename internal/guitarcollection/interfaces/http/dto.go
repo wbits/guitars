@@ -10,6 +10,9 @@ import (
 // guitarRequest is the JSON payload accepted by POST /guitar and PUT /guitar/{id}.
 type guitarRequest struct {
 	SerialNumber      string   `json:"serialNumber,omitempty"`
+	Color             string   `json:"color,omitempty"`
+	Country           string   `json:"country,omitempty"`
+	Factory           string   `json:"factory,omitempty"`
 	Pictures          []string `json:"pictures,omitempty"`
 	CoverPictureIndex int      `json:"coverPictureIndex,omitempty"`
 	Description       string   `json:"description,omitempty"`
@@ -25,6 +28,9 @@ type guitarResponse struct {
 	ID                string   `json:"id"`
 	Owner             string   `json:"owner,omitempty"`
 	SerialNumber      string   `json:"serialNumber,omitempty"`
+	Color             string   `json:"color,omitempty"`
+	Country           string   `json:"country,omitempty"`
+	Factory           string   `json:"factory,omitempty"`
 	Pictures          []string `json:"pictures"`
 	CoverPictureIndex int      `json:"coverPictureIndex"`
 	Description       string   `json:"description,omitempty"`
@@ -44,6 +50,9 @@ func toResponse(g *domain.Guitar) guitarResponse {
 		ID:                g.ID(),
 		Owner:             g.Owner(),
 		SerialNumber:      g.SerialNumber(),
+		Color:             g.Color(),
+		Country:           g.Country(),
+		Factory:           g.Factory(),
 		Pictures:          pictures,
 		CoverPictureIndex: g.CoverPictureIndex(),
 		Description:       g.Description(),

@@ -47,6 +47,9 @@ type guitarItem struct {
 	ID                string   `dynamodbav:"id"`
 	Owner             string   `dynamodbav:"owner,omitempty"`
 	SerialNumber      string   `dynamodbav:"serialNumber,omitempty"`
+	Color             string   `dynamodbav:"color,omitempty"`
+	Country           string   `dynamodbav:"country,omitempty"`
+	Factory           string   `dynamodbav:"factory,omitempty"`
 	Pictures          []string `dynamodbav:"pictures,omitempty"`
 	CoverPictureIndex int      `dynamodbav:"coverPictureIndex,omitempty"`
 	Description       string   `dynamodbav:"description,omitempty"`
@@ -62,6 +65,9 @@ func toItem(g *domain.Guitar) guitarItem {
 		ID:                g.ID(),
 		Owner:             g.Owner(),
 		SerialNumber:      g.SerialNumber(),
+		Color:             g.Color(),
+		Country:           g.Country(),
+		Factory:           g.Factory(),
 		Pictures:          g.Pictures(),
 		CoverPictureIndex: g.CoverPictureIndex(),
 		Description:       g.Description(),
@@ -82,6 +88,9 @@ func (i guitarItem) toDomain() (*domain.Guitar, error) {
 		ID:                i.ID,
 		Owner:             i.Owner,
 		SerialNumber:      i.SerialNumber,
+		Color:             i.Color,
+		Country:           i.Country,
+		Factory:           i.Factory,
 		Pictures:          i.Pictures,
 		CoverPictureIndex: i.CoverPictureIndex,
 		Description:       i.Description,
