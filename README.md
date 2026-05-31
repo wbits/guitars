@@ -205,8 +205,28 @@ Configure in the GitHub repo:
 | Variable | `COGNITO_REGION` | `eu-central-1` (optional) |
 | Secret | `COGNITO_CRAWLER_USERNAME` | `info@wbits.net` |
 | Secret | `COGNITO_CRAWLER_PASSWORD` | Must match the Cognito user password exactly |
+| Secret | `REVERB_API_TOKEN` | Reverb personal access token with at least the `public` scope (see below) |
 | Secret | `EBAY_CLIENT_ID` | eBay production app client ID (optional; local runs only until CI enables eBay) |
 | Secret | `EBAY_CLIENT_SECRET` | eBay production app client secret (optional; local runs only until CI enables eBay) |
+
+### Reverb API token
+
+Generate a personal access token on [reverb.com](https://reverb.com):
+
+1. Open your user menu → **My Profile**
+2. **API & Integrations** → **Generate New Token**
+3. Name it (e.g. `guitars-crawler`), enable at least the **`public`** scope
+4. Copy the token into the `REVERB_API_TOKEN` GitHub secret (never commit it)
+
+Local runs:
+
+```bash
+REVERB_API_TOKEN=your-token make crawl
+```
+
+The crawler sends `Authorization: Bearer <token>` on every Reverb API request.
+GitHub Actions requires this secret; unauthenticated requests from datacenter IPs
+are often blocked by Cloudflare.
 
 The crawler account (`info@wbits.net` by default) may append market logs to
 guitars in collections where `marketCrawlEnabled` is true. When a listing

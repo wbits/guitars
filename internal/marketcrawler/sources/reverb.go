@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,12 +15,22 @@ import (
 	"github.com/wbits/guitars/internal/marketcrawler"
 )
 
-const reverbListingsURL = "https://api.reverb.com/api/listings"
+const (
+	reverbListingsURL   = "https://api.reverb.com/api/listings"
+	reverbUserAgent     = "guitars-market-crawler/1.0"
+	reverbAcceptVersion = "3.0"
+)
 
 // Reverb searches Reverb.com listings via the public Reverb API.
 type Reverb struct {
 	HTTPClient *http.Client
 	PerPage    int
+	Token      string
+}
+
+// Configured reports whether a Reverb personal access token is present.
+func (r *Reverb) Configured() bool {
+	return strings.TrimSpace(r.token()) != ""
 }
 
 func (r *Reverb) Name() string { return "reverb" }
@@ -36,6 +47,19 @@ func (r *Reverb) limit() int {
 		return 15
 	}
 	return r.PerPage
+}
+
+func (r *Reverb) token() string {
+	return strings.TrimSpace(r.Token)
+}
+
+func (r *Reverb) setHeaders(req *http.Request) {
+	req.Header.Set("Accept", "application/hal+json")
+	req.Header.Set("Accept-Version", reverbAcceptVersion)
+	req.Header.Set("User-Agent", reverbUserAgent)
+	if token := r.token(); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 }
 
 // Search returns active and sold Reverb listings matching the guitar.
@@ -69,8 +93,7 @@ func (r *Reverb) fetch(ctx context.Context, query string, soldOnly bool) ([]mark
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "application/hal+json")
-	req.Header.Set("Accept-Version", "3.0")
+	r.setHeaders(req)
 
 	resp, err := r.client().Do(req)
 	if err != nil {
@@ -79,7 +102,7 @@ func (r *Reverb) fetch(ctx context.Context, query string, soldOnly bool) ([]mark
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return nil, fmt.Errorf("reverb api status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, reverbAPIError(resp.StatusCode, body, r.Configured())
 	}
 
 	var payload reverbListingsResponse
@@ -183,4 +206,27 @@ func (l reverbListing) priceMinorUnits() (int64, string, bool) {
 		return 0, "", false
 	}
 	return int64(amount * 100), currency, true
+}
+
+func reverbAPIError(status int, body []byte, hasToken bool) error {
+	text := strings.TrimSpace(string(body))
+	lower := strings.ToLower(text)
+	if strings.HasPrefix(lower, "<!doctype") || strings.HasPrefix(lower, "<html") {
+		if hasToken {
+			return fmt.Errorf("reverb api status %d: blocked by edge firewall (Cloudflare)", status)
+		}
+		return fmt.Errorf("reverb api status %d: blocked by edge firewall; set REVERB_API_TOKEN", status)
+	}
+	if text == "" {
+		return fmt.Errorf("reverb api status %d", status)
+	}
+	if len(text) > 200 {
+		text = text[:200] + "…"
+	}
+	return fmt.Errorf("reverb api status %d: %s", status, text)
+}
+
+// NewReverbFromEnv builds a Reverb source from REVERB_API_TOKEN.
+func NewReverbFromEnv() *Reverb {
+	return &Reverb{Token: os.Getenv("REVERB_API_TOKEN")}
 }

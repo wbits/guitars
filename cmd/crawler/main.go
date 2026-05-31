@@ -39,7 +39,13 @@ func main() {
 
 	var srcs []marketcrawler.Source
 	if !*skipReverb {
-		srcs = append(srcs, &sources.Reverb{})
+		reverb := sources.NewReverbFromEnv()
+		srcs = append(srcs, reverb)
+		if reverb.Configured() {
+			logger.Print("reverb: enabled (authenticated)")
+		} else {
+			logger.Print("reverb: unauthenticated (set REVERB_API_TOKEN for GitHub Actions)")
+		}
 	}
 	if !*skipEbay {
 		ebay := sources.NewEbayFromEnv()
