@@ -78,18 +78,19 @@ func (s *Service) UpdateGuitar(ctx context.Context, ownerID, id string, in Guita
 		return nil, err
 	}
 	if err := g.Update(domain.GuitarProps{
-		Owner:             resolveOwnerForUpdate(g, ownerID),
-		SerialNumber:      in.SerialNumber,
-		Color:             in.Color,
-		Country:           in.Country,
-		Factory:           in.Factory,
-		Pictures:          in.Pictures,
-		CoverPictureIndex: in.CoverPictureIndex,
-		Description:       in.Description,
-		Brand:             in.Brand,
-		TypeName:          in.TypeName,
-		BuildYear:         in.BuildYear,
-		Price:             price,
+		Owner:              resolveOwnerForUpdate(g, ownerID),
+		SerialNumber:       in.SerialNumber,
+		Color:              in.Color,
+		Country:            in.Country,
+		Factory:            in.Factory,
+		Pictures:           in.Pictures,
+		CoverPictureIndex:  in.CoverPictureIndex,
+		Description:        in.Description,
+		Brand:              in.Brand,
+		TypeName:           in.TypeName,
+		BuildYear:          in.BuildYear,
+		Price:              price,
+		HiddenInCollection: g.HiddenInCollection(),
 	}); err != nil {
 		return nil, err
 	}
@@ -116,18 +117,55 @@ func (s *Service) GetGuitar(ctx context.Context, ownerID, id string) (*domain.Gu
 	return g, nil
 }
 
-// ListGuitars returns guitars owned by the caller.
-func (s *Service) ListGuitars(ctx context.Context, ownerID string) ([]*domain.Guitar, error) {
-	return s.repo.FindByOwner(ctx, strings.TrimSpace(ownerID))
+// ListGuitars returns guitars owned by the caller. Hidden guitars are omitted unless includeHidden is true.
+func (s *Service) ListGuitars(ctx context.Context, ownerID string, includeHidden bool) ([]*domain.Guitar, error) {
+	guitars, err := s.repo.FindByOwner(ctx, strings.TrimSpace(ownerID))
+	if err != nil {
+		return nil, err
+	}
+	if includeHidden {
+		return guitars, nil
+	}
+	return filterPublicCollectionGuitars(guitars), nil
 }
 
-// ListUserGuitars returns guitars owned by the given user id.
+// ListUserGuitars returns publicly visible guitars owned by the given user id.
 func (s *Service) ListUserGuitars(ctx context.Context, userID string) ([]*domain.Guitar, error) {
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
 		return nil, domain.InvalidField("userId", "is required")
 	}
-	return s.repo.FindByOwner(ctx, userID)
+	guitars, err := s.repo.FindByOwner(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return filterPublicCollectionGuitars(guitars), nil
+}
+
+// SetGuitarHidden updates whether a guitar appears in collection listings.
+func (s *Service) SetGuitarHidden(ctx context.Context, ownerID, id string, hidden bool) (*domain.Guitar, error) {
+	g, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !guitarWritableBy(g, ownerID) {
+		return nil, domain.ErrGuitarNotFound
+	}
+	g.SetHiddenInCollection(hidden)
+	if err := s.repo.Save(ctx, g); err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+func filterPublicCollectionGuitars(guitars []*domain.Guitar) []*domain.Guitar {
+	out := make([]*domain.Guitar, 0, len(guitars))
+	for _, g := range guitars {
+		if !g.HiddenInCollection() {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // ListCollectionOwners returns every user id that owns at least one guitar.

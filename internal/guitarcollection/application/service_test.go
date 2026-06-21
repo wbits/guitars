@@ -170,7 +170,7 @@ func TestService_UpdateGuitar_BackfillsOwner(t *testing.T) {
 	if g.Owner() != testOwner {
 		t.Fatalf("want owner backfilled to %s, got %s", testOwner, g.Owner())
 	}
-	listed, err := svc.ListGuitars(context.Background(), testOwner)
+	listed, err := svc.ListGuitars(context.Background(), testOwner, true)
 	if err != nil || len(listed) != 1 {
 		t.Fatalf("want listed guitar after backfill, got %d err=%v", len(listed), err)
 	}
@@ -186,12 +186,91 @@ func TestService_ListGuitars(t *testing.T) {
 	if _, err := svc.AddGuitar(context.Background(), testOwner, validInput()); err != nil {
 		t.Fatalf("seed 2 failed: %v", err)
 	}
-	all, err := svc.ListGuitars(context.Background(), testOwner)
+	all, err := svc.ListGuitars(context.Background(), testOwner, true)
 	if err != nil {
 		t.Fatalf("list failed: %v", err)
 	}
 	if len(all) != 2 {
 		t.Errorf("expected 2 guitars, got %d", len(all))
+	}
+}
+
+func TestService_ListGuitars_OmitsHiddenByDefault(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1", "guitar-2"}})
+
+	visible, err := svc.AddGuitar(context.Background(), testOwner, validInput())
+	if err != nil {
+		t.Fatal(err)
+	}
+	hidden, err := svc.AddGuitar(context.Background(), testOwner, validInput())
+	if err != nil {
+		t.Fatal(err)
+	}
+	hidden.SetHiddenInCollection(true)
+	if err := repo.Save(context.Background(), hidden); err != nil {
+		t.Fatal(err)
+	}
+
+	listed, err := svc.ListGuitars(context.Background(), testOwner, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].ID() != visible.ID() {
+		t.Fatalf("expected only visible guitar, got %+v", listed)
+	}
+
+	withHidden, err := svc.ListGuitars(context.Background(), testOwner, true)
+	if err != nil || len(withHidden) != 2 {
+		t.Fatalf("expected 2 guitars with includeHidden, got %d err=%v", len(withHidden), err)
+	}
+}
+
+func TestService_SetGuitarHidden(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1"}})
+	if _, err := svc.AddGuitar(context.Background(), testOwner, validInput()); err != nil {
+		t.Fatal(err)
+	}
+
+	hidden, err := svc.SetGuitarHidden(context.Background(), testOwner, "guitar-1", true)
+	if err != nil || !hidden.HiddenInCollection() {
+		t.Fatalf("expected hidden guitar, got err=%v hidden=%v", err, hidden)
+	}
+	_, err = svc.GetGuitar(context.Background(), "other-user", "guitar-1")
+	if !errors.Is(err, domain.ErrGuitarNotFound) {
+		t.Fatalf("other users should not read hidden guitar, got %v", err)
+	}
+	if _, err := svc.GetGuitar(context.Background(), testOwner, "guitar-1"); err != nil {
+		t.Fatalf("owner should read hidden guitar: %v", err)
+	}
+
+	shown, err := svc.SetGuitarHidden(context.Background(), testOwner, "guitar-1", false)
+	if err != nil || shown.HiddenInCollection() {
+		t.Fatalf("expected visible guitar, got err=%v hidden=%v", err, shown)
+	}
+}
+
+func TestService_UpdateGuitar_PreservesHiddenFlag(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo, &fixedIDs{ids: []string{"guitar-1"}})
+	g, err := svc.AddGuitar(context.Background(), testOwner, validInput())
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.SetHiddenInCollection(true)
+	if err := repo.Save(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+
+	in := validInput()
+	in.Brand = "Gibson"
+	updated, err := svc.UpdateGuitar(context.Background(), testOwner, "guitar-1", in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.HiddenInCollection() || updated.Brand() != "Gibson" {
+		t.Fatalf("expected hidden Gibson, got hidden=%v brand=%s", updated.HiddenInCollection(), updated.Brand())
 	}
 }
 

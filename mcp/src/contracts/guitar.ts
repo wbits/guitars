@@ -74,6 +74,7 @@ export const guitarSchema = guitarFieldsSchema
   .extend({
     id: z.string().min(1),
     owner: z.string().min(1).optional(),
+    hiddenInCollection: z.boolean().optional(),
   })
   .superRefine(refineCoverPicture);
 

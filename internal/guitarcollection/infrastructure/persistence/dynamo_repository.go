@@ -58,6 +58,7 @@ type guitarItem struct {
 	BuildYear         int      `dynamodbav:"buildYear"`
 	PriceAmount       int64    `dynamodbav:"priceAmount"`
 	PriceCurrency     string   `dynamodbav:"priceCurrency"`
+	HiddenInCollection bool    `dynamodbav:"hiddenInCollection,omitempty"`
 }
 
 func toItem(g *domain.Guitar) guitarItem {
@@ -76,6 +77,7 @@ func toItem(g *domain.Guitar) guitarItem {
 		BuildYear:         g.BuildYear(),
 		PriceAmount:       g.Price().Amount(),
 		PriceCurrency:     string(g.Price().Currency()),
+		HiddenInCollection: g.HiddenInCollection(),
 	}
 }
 
@@ -98,6 +100,7 @@ func (i guitarItem) toDomain() (*domain.Guitar, error) {
 		TypeName:          i.TypeName,
 		BuildYear:         i.BuildYear,
 		Price:             price,
+		HiddenInCollection: i.HiddenInCollection,
 	})
 }
 

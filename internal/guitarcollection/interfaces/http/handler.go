@@ -49,6 +49,8 @@ func NewHandler(svc *application.Service, marketLogs *application.MarketLogServi
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
+var guitarHidePath = regexp.MustCompile(`^/guitar/([^/]+)/hide/?$`)
+var guitarShowPath = regexp.MustCompile(`^/guitar/([^/]+)/show/?$`)
 var guitarAnalyzePath = regexp.MustCompile(`^/guitar/([^/]+)/analyze/?$`)
 var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
 var userCollectionPath = regexp.MustCompile(`^/collections/([^/]+)/guitar/?$`)
@@ -86,7 +88,7 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 	case path == "/collections" && method == "GET":
 		return h.listCollections(ctx)
 	case path == "/guitar" && method == "GET":
-		return h.list(ctx, principal.UserID)
+		return h.list(ctx, principal.UserID, parseIncludeHidden(req.QueryStringParameters))
 	case path == "/guitar" && method == "POST":
 		return h.create(ctx, principal.UserID, req.Body)
 	case path == "/upload/presign" && method == "POST":
@@ -120,6 +122,12 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		}
 		if m := guitarAnalyzePath.FindStringSubmatch(path); m != nil && method == "POST" {
 			return h.analyzeGuitar(ctx, principal.UserID, m[1])
+		}
+		if m := guitarHidePath.FindStringSubmatch(path); m != nil && method == "POST" {
+			return h.setGuitarHidden(ctx, principal.UserID, m[1], true)
+		}
+		if m := guitarShowPath.FindStringSubmatch(path); m != nil && method == "POST" {
+			return h.setGuitarHidden(ctx, principal.UserID, m[1], false)
 		}
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
@@ -221,6 +229,9 @@ func (h *Handler) listCollections(ctx context.Context) (events.APIGatewayProxyRe
 		if err != nil {
 			return errorToResponse(err)
 		}
+		if len(guitars) == 0 {
+			continue
+		}
 		resp := collectionOwnerResponse{
 			UserID:      ownerID,
 			GuitarCount: len(guitars),
@@ -247,8 +258,8 @@ func (h *Handler) listUserCollection(ctx context.Context, userID string) (events
 	return jsonResponse(200, out)
 }
 
-func (h *Handler) list(ctx context.Context, ownerID string) (events.APIGatewayProxyResponse, error) {
-	guitars, err := h.svc.ListGuitars(ctx, ownerID)
+func (h *Handler) list(ctx context.Context, ownerID string, includeHidden bool) (events.APIGatewayProxyResponse, error) {
+	guitars, err := h.svc.ListGuitars(ctx, ownerID, includeHidden)
 	if err != nil {
 		return errorToResponse(err)
 	}
@@ -317,11 +328,19 @@ func (h *Handler) analyzeGuitar(ctx context.Context, ownerID, id string) (events
 	return jsonResponse(202, h.toResponseWithAnalysis(ctx, g))
 }
 
+func (h *Handler) setGuitarHidden(ctx context.Context, ownerID, id string, hidden bool) (events.APIGatewayProxyResponse, error) {
+	g, err := h.svc.SetGuitarHidden(ctx, ownerID, id, hidden)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
+}
+
 func (h *Handler) reanalyzeCollection(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
 	if h.analysis == nil {
 		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
 	}
-	guitars, err := h.svc.ListGuitars(ctx, principal.UserID)
+	guitars, err := h.svc.ListGuitars(ctx, principal.UserID, true)
 	if err != nil {
 		return errorToResponse(err)
 	}
@@ -494,6 +513,18 @@ func normalisePath(p string) string {
 		return "/"
 	}
 	return p
+}
+
+func parseIncludeHidden(params map[string]string) bool {
+	if params == nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(params["includeHidden"])) {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 // pickHeader fetches the first match for name from headers using a

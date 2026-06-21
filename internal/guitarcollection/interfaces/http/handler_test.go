@@ -542,3 +542,62 @@ func TestHandler_AssistantBYOK_PutAndDelete(t *testing.T) {
 		t.Fatalf("expected cleared: %+v", me)
 	}
 }
+
+func TestHandler_GuitarVisibility_HideShowAndList(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: want 201, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var created guitarResponse
+	if err := json.Unmarshal([]byte(resp.Body), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.HiddenInCollection {
+		t.Fatal("new guitar should be visible by default")
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("POST", "/guitar/"+created.ID+"/hide", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("hide: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var hidden guitarResponse
+	if err := json.Unmarshal([]byte(resp.Body), &hidden); err != nil {
+		t.Fatal(err)
+	}
+	if !hidden.HiddenInCollection {
+		t.Fatal("expected hidden guitar")
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("GET", "/guitar", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("list: want 200, got %d", resp.StatusCode)
+	}
+	var list []guitarResponse
+	if err := json.Unmarshal([]byte(resp.Body), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("hidden guitar should be omitted from default list, got %d", len(list))
+	}
+
+	resp, _ = h.Handle(ctx, events.APIGatewayProxyRequest{
+		HTTPMethod:            "GET",
+		Path:                  "/guitar",
+		QueryStringParameters: map[string]string{"includeHidden": "true"},
+		Headers:               map[string]string{"Authorization": validBearer},
+	})
+	if err := json.Unmarshal([]byte(resp.Body), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("includeHidden list: want 1, got %d", len(list))
+	}
+
+	resp, _ = h.Handle(ctx, reqWithAuth("POST", "/guitar/"+created.ID+"/show", ""))
+	if resp.StatusCode != 200 {
+		t.Fatalf("show: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+}

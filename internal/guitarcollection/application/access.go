@@ -6,8 +6,11 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 )
 
-func guitarReadableBy(_ *domain.Guitar, _ string) bool {
-	return true
+func guitarReadableBy(g *domain.Guitar, userID string) bool {
+	if !g.HiddenInCollection() {
+		return true
+	}
+	return guitarWritableBy(g, userID)
 }
 
 func guitarWritableBy(g *domain.Guitar, userID string) bool {

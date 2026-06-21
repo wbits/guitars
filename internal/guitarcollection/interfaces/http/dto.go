@@ -50,6 +50,7 @@ type guitarResponse struct {
 	BuildYear         int                     `json:"buildYear"`
 	PriceAmount       int64                   `json:"priceAmount"`
 	PriceCurrency     string                  `json:"priceCurrency"`
+	HiddenInCollection bool                   `json:"hiddenInCollection,omitempty"`
 	Analysis          *guitarAnalysisResponse `json:"analysis,omitempty"`
 }
 
@@ -90,6 +91,7 @@ func toResponse(g *domain.Guitar) guitarResponse {
 		BuildYear:         g.BuildYear(),
 		PriceAmount:       g.Price().Amount(),
 		PriceCurrency:     string(g.Price().Currency()),
+		HiddenInCollection: g.HiddenInCollection(),
 	}
 }
 

@@ -31,6 +31,7 @@ type Guitar struct {
 	typeName          string
 	buildYear         int
 	price             Money
+	hiddenInCollection bool
 }
 
 // GuitarProps is the data-transfer shape used to create or update a Guitar.
@@ -49,6 +50,7 @@ type GuitarProps struct {
 	TypeName          string
 	BuildYear         int
 	Price             Money
+	HiddenInCollection bool
 }
 
 // NewGuitar validates the supplied props and returns a freshly built Guitar.
@@ -96,6 +98,7 @@ func NewGuitar(p GuitarProps) (*Guitar, error) {
 		typeName:          strings.TrimSpace(p.TypeName),
 		buildYear:         p.BuildYear,
 		price:             p.Price,
+		hiddenInCollection: p.HiddenInCollection,
 	}, nil
 }
 
@@ -170,6 +173,12 @@ func (g *Guitar) Brand() string       { return g.brand }
 func (g *Guitar) TypeName() string    { return g.typeName }
 func (g *Guitar) BuildYear() int      { return g.buildYear }
 func (g *Guitar) Price() Money        { return g.price }
+func (g *Guitar) HiddenInCollection() bool { return g.hiddenInCollection }
+
+// SetHiddenInCollection controls whether the guitar appears in collection listings.
+func (g *Guitar) SetHiddenInCollection(hidden bool) {
+	g.hiddenInCollection = hidden
+}
 
 // Update replaces all mutable details of the guitar in a single atomic step.
 // Identity (ID) cannot be changed. The same invariants as for construction

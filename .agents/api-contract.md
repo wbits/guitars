@@ -14,11 +14,13 @@ Errors: `{ "error": "message" }` with appropriate HTTP status.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/guitar` | List guitars owned by authenticated user |
+| GET | `/guitar` | List guitars owned by authenticated user (hidden omitted by default; see query) |
 | GET | `/guitar/{id}` | Single guitar |
 | POST | `/guitar` | Create (triggers photo analysis when owner opted in) |
 | PUT | `/guitar/{id}` | Full replace (re-analyzes when pictures change) |
 | DELETE | `/guitar/{id}` | Delete |
+| POST | `/guitar/{id}/hide` | Hide from collection listings (owner only) |
+| POST | `/guitar/{id}/show` | Show in collection listings (owner only) |
 | POST | `/guitar/{id}/analyze` | Re-run photo analysis (owner only) |
 
 Go domain: [`internal/guitarcollection/domain/guitar.go`](../internal/guitarcollection/domain/guitar.go).
@@ -61,6 +63,18 @@ Clients **do not send** `id` or `owner`; the API assigns them.
 ### Response
 
 Same fields plus `id` and optional `owner` (Cognito `sub`).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `hiddenInCollection` | boolean? | When `true`, omitted from public and default owner list views; owner can still open by id |
+
+### GET `/guitar` query
+
+| Param | Values | Notes |
+|-------|--------|-------|
+| `includeHidden` | `true` / `1` | Owner list includes hidden guitars; default omits them |
+
+Public collection list (`GET /collections/{userId}/guitar`) never includes hidden guitars. Owners can always read hidden guitars by id; other users receive 404.
 
 Optional `analysis` object (AI-detected, advisory):
 
