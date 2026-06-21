@@ -338,6 +338,26 @@ Resources:
           Properties:
             Path: /me/assistant-byok
             Method: options
+        ReanalyzeCollection:
+          Type: Api
+          Properties:
+            Path: /me/reanalyze-collection
+            Method: post
+        OptionsReanalyzeCollection:
+          Type: Api
+          Properties:
+            Path: /me/reanalyze-collection
+            Method: options
+        AnalyzeGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/analyze
+            Method: post
+        OptionsAnalyzeGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/analyze
+            Method: options
         ListCollections:
           Type: Api
           Properties:
