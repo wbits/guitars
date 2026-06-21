@@ -24,6 +24,10 @@ Parameters:
     Type: String
     Default: AssistantUsage
     Description: DynamoDB table for hosted assistant daily rate limits.
+  GuitarAnalysisTableName:
+    Type: String
+    Default: GuitarAnalysis
+    Description: DynamoDB table for AI photo analysis metadata.
   AssistantDailyLimit:
     Type: Number
     Default: 10
@@ -69,6 +73,7 @@ Globals:
         GUITARS_TABLE: !Ref TableName
         MARKET_LOGS_TABLE: !Ref MarketLogsTableName
         USER_PROFILES_TABLE: !Ref UserProfilesTableName
+        GUITAR_ANALYSIS_TABLE: !Ref GuitarAnalysisTableName
         ASSISTANT_USAGE_TABLE: !Ref AssistantUsageTableName
         ASSISTANT_DAILY_LIMIT: !Ref AssistantDailyLimit
         ASSISTANT_BYOK_DAILY_LIMIT: !Ref AssistantBYOKDailyLimit
@@ -204,6 +209,18 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
+  GuitarAnalysisTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref GuitarAnalysisTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: guitarId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: guitarId
+          KeyType: HASH
+
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -218,6 +235,8 @@ Resources:
             TableName: !Ref UserProfilesTableName
         - DynamoDBCrudPolicy:
             TableName: !Ref AssistantUsageTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GuitarAnalysisTableName
         - !If
           - HasImagesBucket
           - Statement:

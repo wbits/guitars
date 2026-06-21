@@ -44,6 +44,7 @@ type profileItem struct {
 	AssistantEncryptedAPIKey string `dynamodbav:"assistantEncryptedApiKey,omitempty"`
 	AssistantLLMBaseURL      string `dynamodbav:"assistantLlmBaseUrl,omitempty"`
 	AssistantLLMModel        string `dynamodbav:"assistantLlmModel,omitempty"`
+	PhotoAnalysisEnabled     bool   `dynamodbav:"photoAnalysisEnabled,omitempty"`
 }
 
 func toItem(profile *domain.Profile) profileItem {
@@ -55,6 +56,7 @@ func toItem(profile *domain.Profile) profileItem {
 		AssistantEncryptedAPIKey: profile.AssistantEncryptedAPIKey(),
 		AssistantLLMBaseURL:      profile.AssistantLLMBaseURL(),
 		AssistantLLMModel:        profile.AssistantLLMModel(),
+		PhotoAnalysisEnabled:     profile.PhotoAnalysisOptIn(),
 	}
 }
 
@@ -67,6 +69,7 @@ func (item profileItem) toDomain() (*domain.Profile, error) {
 		AssistantEncryptedAPIKey: item.AssistantEncryptedAPIKey,
 		AssistantLLMBaseURL:      item.AssistantLLMBaseURL,
 		AssistantLLMModel:        item.AssistantLLMModel,
+		PhotoAnalysisEnabled:     item.PhotoAnalysisEnabled,
 	})
 }
 

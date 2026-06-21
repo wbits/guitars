@@ -21,6 +21,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/wbits/guitars/internal/assistant"
+	"github.com/wbits/guitars/internal/guitaranalysis"
+	analysispersistence "github.com/wbits/guitars/internal/guitaranalysis/persistence"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
@@ -51,6 +53,7 @@ func main() {
 	tableName := envOrDefault("GUITARS_TABLE", "Guitars")
 	marketLogsTable := envOrDefault("MARKET_LOGS_TABLE", "MarketLogs")
 	profilesTable := envOrDefault("USER_PROFILES_TABLE", "UserProfiles")
+	analysisTable := envOrDefault("GUITAR_ANALYSIS_TABLE", "GuitarAnalysis")
 
 	ddbOpts := []func(*dynamodb.Options){}
 	s3Opts := []func(*s3.Options){}
@@ -138,17 +141,27 @@ func main() {
 		BaseURL: os.Getenv("ASSISTANT_LLM_BASE_URL"),
 		Model:   os.Getenv("ASSISTANT_LLM_MODEL"),
 	}
+	var analysisSvc *guitaranalysis.Service
+	if analysisTable != "" {
+		analysisRepo := analysispersistence.NewDynamoRepository(ddb, analysisTable)
+		analysisSvc = guitaranalysis.NewService(
+			analysisRepo,
+			&guitaranalysis.ProfileOwnerLoader{Profiles: profiles},
+			&guitaranalysis.VisionAnalyzer{},
+		)
+	}
 	assistantSvc := assistant.NewService(
 		svc,
 		llm,
 		limiter,
 		&assistant.ProfileBYOKProvider{Profiles: profiles},
 		byokLimiter,
+		&assistant.GuitarAnalysisIndex{Service: analysisSvc},
 	)
 
-	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"), assistantSvc)
+	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"), assistantSvc, analysisSvc)
 
-	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, auth=%s, uploads=%t, assistantLimit=%d)", tableName, marketLogsTable, profilesTable, auth.AuthenticatorMode(), presigner != nil, dailyLimit)
+	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, analysis=%s, auth=%s, uploads=%t, assistantLimit=%d)", tableName, marketLogsTable, profilesTable, analysisTable, auth.AuthenticatorMode(), presigner != nil, dailyLimit)
 	lambda.Start(handler.Handle)
 }
 

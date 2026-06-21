@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 
 	"github.com/wbits/guitars/internal/assistant"
+	"github.com/wbits/guitars/internal/guitaranalysis"
+	analysispersistence "github.com/wbits/guitars/internal/guitaranalysis/persistence"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
@@ -55,8 +57,11 @@ func newTestHandler() *Handler {
 		assistant.NewMemoryRateLimiter(100),
 		&assistant.ProfileBYOKProvider{Profiles: profiles},
 		assistant.NewMemoryRateLimiter(200),
+		nil,
 	)
-	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistantSvc)
+	analysisRepo := analysispersistence.NewMemoryRepository()
+	analysisSvc := guitaranalysis.NewService(analysisRepo, &guitaranalysis.ProfileOwnerLoader{Profiles: profiles}, nil)
+	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistantSvc, analysisSvc)
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {

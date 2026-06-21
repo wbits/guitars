@@ -9,6 +9,7 @@ REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 TABLE_NAME="${GUITARS_TABLE:-Guitars}"
 MARKET_LOGS_TABLE="${MARKET_LOGS_TABLE:-MarketLogs}"
 USER_PROFILES_TABLE="${USER_PROFILES_TABLE:-UserProfiles}"
+GUITAR_ANALYSIS_TABLE="${GUITAR_ANALYSIS_TABLE:-GuitarAnalysis}"
 ASSISTANT_USAGE_TABLE="${ASSISTANT_USAGE_TABLE:-AssistantUsage}"
 SECRET_NAME="${BEARER_SECRET_ID:-guitars/bearer-token}"
 BEARER_TOKEN="${BEARER_TOKEN:-local-dev-token}"
@@ -78,6 +79,14 @@ aws --endpoint-url="${ENDPOINT}" dynamodb update-time-to-live \
   --time-to-live-specification "Enabled=true, AttributeName=expiresAt" \
   >/dev/null 2>&1 || true
 
+echo "Creating DynamoDB table ${GUITAR_ANALYSIS_TABLE} ..."
+aws --endpoint-url="${ENDPOINT}" dynamodb create-table \
+  --table-name "${GUITAR_ANALYSIS_TABLE}" \
+  --attribute-definitions AttributeName=guitarId,AttributeType=S \
+  --key-schema AttributeName=guitarId,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  >/dev/null 2>&1 || echo "  (table already exists)"
+
 echo "Creating Secrets Manager secret ${SECRET_NAME} ..."
 if ! aws --endpoint-url="${ENDPOINT}" secretsmanager describe-secret \
         --secret-id "${SECRET_NAME}" >/dev/null 2>&1; then
@@ -121,6 +130,7 @@ echo "LocalStack init complete."
 echo "  table : ${TABLE_NAME}"
 echo "  market: ${MARKET_LOGS_TABLE}"
 echo "  profiles: ${USER_PROFILES_TABLE}"
+echo "  analysis: ${GUITAR_ANALYSIS_TABLE}"
 echo "  secret: ${SECRET_NAME}"
 echo "  token : ${BEARER_TOKEN}"
 echo "  bucket: ${IMAGES_BUCKET}"

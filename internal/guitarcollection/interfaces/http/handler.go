@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 
 	"github.com/wbits/guitars/internal/assistant"
+	"github.com/wbits/guitars/internal/guitaranalysis"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
@@ -33,6 +34,7 @@ type Handler struct {
 	marketLogs *application.MarketLogService
 	profiles   *profileapp.Service
 	assistant  *assistant.Service
+	analysis   *guitaranalysis.Service
 	auth       auth.Authenticator
 	presigner  *storage.Presigner
 	adminGroup string
@@ -42,11 +44,12 @@ type Handler struct {
 // authenticator. Both service arguments are required. presigner may be nil
 // when image uploads are not configured. profiles may be nil to disable
 // profile endpoints. adminGroup names the Cognito group that grants admin access.
-func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner, adminGroup string, assistantSvc *assistant.Service) *Handler {
-	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, assistant: assistantSvc, auth: a, presigner: presigner, adminGroup: adminGroup}
+func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner, adminGroup string, assistantSvc *assistant.Service, analysisSvc *guitaranalysis.Service) *Handler {
+	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, assistant: assistantSvc, analysis: analysisSvc, auth: a, presigner: presigner, adminGroup: adminGroup}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
+var guitarAnalyzePath = regexp.MustCompile(`^/guitar/([^/]+)/analyze/?$`)
 var guitarMarketLogPath = regexp.MustCompile(`^/guitar/([^/]+)/market-log/?$`)
 var userCollectionPath = regexp.MustCompile(`^/collections/([^/]+)/guitar/?$`)
 var collectionMarketCrawlPath = regexp.MustCompile(`^/collections/([^/]+)/market-crawl/?$`)
@@ -113,6 +116,9 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 				return h.createMarketLogs(ctx, principal.UserID, principal.Email, id, req.Body)
 			}
 		}
+		if m := guitarAnalyzePath.FindStringSubmatch(path); m != nil && method == "POST" {
+			return h.analyzeGuitar(ctx, principal.UserID, m[1])
+		}
 		if m := guitarItemPath.FindStringSubmatch(path); m != nil {
 			id := m[1]
 			switch method {
@@ -156,6 +162,12 @@ func (h *Handler) patchMe(ctx context.Context, principal auth.Principal, body st
 	profile, err := h.profiles.UpdateUsername(ctx, principal.UserID, principal.Email, req.Username)
 	if err != nil {
 		return profileErrorToResponse(err)
+	}
+	if req.PhotoAnalysisEnabled != nil {
+		profile, err = h.profiles.SetPhotoAnalysisEnabled(ctx, principal.UserID, principal.Email, *req.PhotoAnalysisEnabled)
+		if err != nil {
+			return profileErrorToResponse(err)
+		}
 	}
 	return jsonResponse(200, toMeResponse(profile, auth.IsAdmin(principal, h.adminGroup)))
 }
@@ -222,10 +234,7 @@ func (h *Handler) listUserCollection(ctx context.Context, userID string) (events
 	if err != nil {
 		return errorToResponse(err)
 	}
-	out := make([]guitarResponse, 0, len(guitars))
-	for _, g := range guitars {
-		out = append(out, toResponse(g))
-	}
+	out := h.toResponsesWithAnalysis(ctx, guitars)
 	return jsonResponse(200, out)
 }
 
@@ -234,10 +243,7 @@ func (h *Handler) list(ctx context.Context, ownerID string) (events.APIGatewayPr
 	if err != nil {
 		return errorToResponse(err)
 	}
-	out := make([]guitarResponse, 0, len(guitars))
-	for _, g := range guitars {
-		out = append(out, toResponse(g))
-	}
+	out := h.toResponsesWithAnalysis(ctx, guitars)
 	return jsonResponse(200, out)
 }
 
@@ -246,7 +252,7 @@ func (h *Handler) get(ctx context.Context, ownerID, id string) (events.APIGatewa
 	if err != nil {
 		return errorToResponse(err)
 	}
-	return jsonResponse(200, toResponse(g))
+	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
 }
 
 func (h *Handler) create(ctx context.Context, ownerID, body string) (events.APIGatewayProxyResponse, error) {
@@ -258,7 +264,8 @@ func (h *Handler) create(ctx context.Context, ownerID, body string) (events.APIG
 	if err != nil {
 		return errorToResponse(err)
 	}
-	return jsonResponse(201, toResponse(g))
+	h.triggerAnalysis(ctx, g)
+	return jsonResponse(201, h.toResponseWithAnalysis(ctx, g))
 }
 
 func (h *Handler) update(ctx context.Context, ownerID, id, body string) (events.APIGatewayProxyResponse, error) {
@@ -270,14 +277,82 @@ func (h *Handler) update(ctx context.Context, ownerID, id, body string) (events.
 	if err != nil {
 		return errorToResponse(err)
 	}
-	return jsonResponse(200, toResponse(g))
+	h.triggerAnalysis(ctx, g)
+	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
 }
 
 func (h *Handler) delete(ctx context.Context, ownerID, id string) (events.APIGatewayProxyResponse, error) {
 	if err := h.svc.DeleteGuitar(ctx, ownerID, id); err != nil {
 		return errorToResponse(err)
 	}
+	if h.analysis != nil {
+		_ = h.analysis.DeleteForGuitar(ctx, id)
+	}
 	return events.APIGatewayProxyResponse{StatusCode: 204, Headers: responseHeaders(nil)}, nil
+}
+
+func (h *Handler) analyzeGuitar(ctx context.Context, ownerID, id string) (events.APIGatewayProxyResponse, error) {
+	g, err := h.svc.GetGuitar(ctx, ownerID, id)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	if g.Owner() != ownerID {
+		return jsonResponse(403, errorResponse{Error: "forbidden"})
+	}
+	if h.analysis == nil {
+		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
+	}
+	if _, err := h.analysis.AnalyzeIfEligible(ctx, g); err != nil {
+		return jsonResponse(502, errorResponse{Error: "photo analysis failed"})
+	}
+	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
+}
+
+func (h *Handler) triggerAnalysis(ctx context.Context, g *domain.Guitar) {
+	if h.analysis == nil || g == nil {
+		return
+	}
+	_, _ = h.analysis.AnalyzeIfEligible(ctx, g)
+}
+
+func (h *Handler) toResponseWithAnalysis(ctx context.Context, g *domain.Guitar) guitarResponse {
+	resp := toResponse(g)
+	if h.analysis == nil {
+		return resp
+	}
+	rec, err := h.analysis.Get(ctx, g.ID())
+	if err != nil || rec == nil {
+		return resp
+	}
+	resp.Analysis = toAnalysisResponse(rec)
+	return resp
+}
+
+func (h *Handler) toResponsesWithAnalysis(ctx context.Context, guitars []*domain.Guitar) []guitarResponse {
+	out := make([]guitarResponse, 0, len(guitars))
+	if len(guitars) == 0 {
+		return out
+	}
+	analysisMap := map[string]*guitaranalysis.Record{}
+	if h.analysis != nil {
+		ids := make([]string, len(guitars))
+		for i, g := range guitars {
+			ids[i] = g.ID()
+		}
+		var err error
+		analysisMap, err = h.analysis.MapForGuitars(ctx, ids)
+		if err != nil {
+			analysisMap = map[string]*guitaranalysis.Record{}
+		}
+	}
+	for _, g := range guitars {
+		resp := toResponse(g)
+		if rec := analysisMap[g.ID()]; rec != nil {
+			resp.Analysis = toAnalysisResponse(rec)
+		}
+		out = append(out, resp)
+	}
+	return out
 }
 
 func (h *Handler) presignUpload(ctx context.Context, body string) (events.APIGatewayProxyResponse, error) {

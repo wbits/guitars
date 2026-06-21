@@ -49,6 +49,7 @@ func TestService_ResolveTier_UsesBYOKOnOwnCollection(t *testing.T) {
 		NewMemoryRateLimiter(1),
 		&stubBYOK{creds: BYOKCredentials{APIKey: "sk-owner"}, ok: true},
 		NewMemoryRateLimiter(5),
+		nil,
 	)
 	_, err = svc.Chat(context.Background(), ChatRequest{
 		CollectionUserID: "owner-1",
@@ -71,6 +72,7 @@ func TestService_ResolveTier_UsesHostedForOtherCollections(t *testing.T) {
 		NewMemoryRateLimiter(5),
 		&stubBYOK{creds: BYOKCredentials{APIKey: "sk-owner"}, ok: true},
 		NewMemoryRateLimiter(100),
+		nil,
 	)
 	_, err := svc.Chat(context.Background(), ChatRequest{
 		CollectionUserID: "owner-1",

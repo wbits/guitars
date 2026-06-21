@@ -16,6 +16,7 @@ type Profile struct {
 	assistantEncryptedAPIKey string
 	assistantLLMBaseURL      string
 	assistantLLMModel        string
+	photoAnalysisEnabled     bool
 }
 
 // ProfileProps are the mutable fields of a Profile.
@@ -27,6 +28,7 @@ type ProfileProps struct {
 	AssistantEncryptedAPIKey string
 	AssistantLLMBaseURL      string
 	AssistantLLMModel        string
+	PhotoAnalysisEnabled     bool
 }
 
 // NewProfile validates and constructs a Profile.
@@ -49,6 +51,7 @@ func NewProfile(props ProfileProps) (*Profile, error) {
 		assistantEncryptedAPIKey: strings.TrimSpace(props.AssistantEncryptedAPIKey),
 		assistantLLMBaseURL:      strings.TrimSpace(props.AssistantLLMBaseURL),
 		assistantLLMModel:        strings.TrimSpace(props.AssistantLLMModel),
+		photoAnalysisEnabled:     props.PhotoAnalysisEnabled,
 	}, nil
 }
 
@@ -132,4 +135,17 @@ func (p *Profile) ClearAssistantBYOK() {
 	p.assistantEncryptedAPIKey = ""
 	p.assistantLLMBaseURL = ""
 	p.assistantLLMModel = ""
+	p.photoAnalysisEnabled = false
+}
+
+func (p *Profile) PhotoAnalysisOptIn() bool { return p.photoAnalysisEnabled }
+
+func (p *Profile) PhotoAnalysisEnabled() bool { return p.photoAnalysisEnabled && p.AssistantBYOKConfigured() }
+
+func (p *Profile) SetPhotoAnalysisEnabled(enabled bool) error {
+	if enabled && !p.AssistantBYOKConfigured() {
+		return InvalidField("photoAnalysisEnabled", "requires a configured assistant API key")
+	}
+	p.photoAnalysisEnabled = enabled
+	return nil
 }

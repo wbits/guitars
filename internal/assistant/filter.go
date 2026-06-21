@@ -15,16 +15,28 @@ type Filter struct {
 	MaxPriceMajor *float64 `json:"maxPriceMajor,omitempty"`
 	MinYear       *int     `json:"minYear,omitempty"`
 	MaxYear       *int     `json:"maxYear,omitempty"`
+	Tag           string   `json:"tag,omitempty"`
+	SearchText    string   `json:"searchText,omitempty"`
 }
 
 func (f Filter) isEmpty() bool {
 	return f.Brand == "" && f.TypeName == "" && f.Color == "" &&
 		f.MinPriceMajor == nil && f.MaxPriceMajor == nil &&
-		f.MinYear == nil && f.MaxYear == nil
+		f.MinYear == nil && f.MaxYear == nil &&
+		f.Tag == "" && f.SearchText == ""
+}
+
+// AnalysisSearch provides AI metadata for gallery filtering.
+type AnalysisSearch interface {
+	SearchBlob() string
+	Tags() []string
 }
 
 // ApplyFilter returns guitars matching all non-empty filter fields.
-func ApplyFilter(guitars []*domain.Guitar, f Filter) []*domain.Guitar {
+func ApplyFilter(guitars []*domain.Guitar, f Filter, analysis map[string]AnalysisSearch) []*domain.Guitar {
+	if analysis == nil {
+		analysis = map[string]AnalysisSearch{}
+	}
 	if f.isEmpty() {
 		out := make([]*domain.Guitar, len(guitars))
 		copy(out, guitars)
@@ -32,14 +44,14 @@ func ApplyFilter(guitars []*domain.Guitar, f Filter) []*domain.Guitar {
 	}
 	out := make([]*domain.Guitar, 0, len(guitars))
 	for _, g := range guitars {
-		if matchesFilter(g, f) {
+		if matchesFilter(g, f, analysis[g.ID()]) {
 			out = append(out, g)
 		}
 	}
 	return out
 }
 
-func matchesFilter(g *domain.Guitar, f Filter) bool {
+func matchesFilter(g *domain.Guitar, f Filter, analysis AnalysisSearch) bool {
 	if f.Brand != "" && !containsFold(g.Brand(), f.Brand) {
 		return false
 	}
@@ -62,7 +74,41 @@ func matchesFilter(g *domain.Guitar, f Filter) bool {
 	if f.MaxPriceMajor != nil && priceMajor > *f.MaxPriceMajor {
 		return false
 	}
+	if f.Tag != "" && !tagMatches(analysis, f.Tag) {
+		return false
+	}
+	if f.SearchText != "" && !searchMatches(g, analysis, f.SearchText) {
+		return false
+	}
 	return true
+}
+
+func tagMatches(analysis AnalysisSearch, tag string) bool {
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "" {
+		return true
+	}
+	if analysis == nil {
+		return false
+	}
+	for _, t := range analysis.Tags() {
+		if containsFold(t, tag) {
+			return true
+		}
+	}
+	return containsFold(analysis.SearchBlob(), tag)
+}
+
+func searchMatches(g *domain.Guitar, analysis AnalysisSearch, query string) bool {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return true
+	}
+	blob := strings.ToLower(g.Brand() + " " + g.TypeName() + " " + g.Color() + " " + g.Description())
+	if analysis != nil {
+		blob += " " + analysis.SearchBlob()
+	}
+	return containsFold(blob, query)
 }
 
 func containsFold(haystack, needle string) bool {

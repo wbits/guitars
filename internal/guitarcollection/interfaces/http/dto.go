@@ -3,6 +3,7 @@ package httpapi
 import (
 	"time"
 
+	"github.com/wbits/guitars/internal/guitaranalysis"
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 	profiledomain "github.com/wbits/guitars/internal/userprofile/domain"
 )
@@ -23,22 +24,50 @@ type guitarRequest struct {
 	PriceCurrency     string   `json:"priceCurrency"`
 }
 
+// guitarAnalysisResponse is AI-detected metadata (advisory, not authoritative).
+type guitarAnalysisResponse struct {
+	Status        string   `json:"status"`
+	VisualSummary string   `json:"visualSummary,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	Confidence    float64  `json:"confidence,omitempty"`
+	FailureReason string   `json:"failureReason,omitempty"`
+	AnalyzedAt    string   `json:"analyzedAt,omitempty"`
+}
+
 // guitarResponse is the JSON projection of a Guitar aggregate sent to clients.
 type guitarResponse struct {
-	ID                string   `json:"id"`
-	Owner             string   `json:"owner,omitempty"`
-	SerialNumber      string   `json:"serialNumber,omitempty"`
-	Color             string   `json:"color,omitempty"`
-	Country           string   `json:"country,omitempty"`
-	Factory           string   `json:"factory,omitempty"`
-	Pictures          []string `json:"pictures"`
-	CoverPictureIndex int      `json:"coverPictureIndex"`
-	Description       string   `json:"description,omitempty"`
-	Brand             string   `json:"brand"`
-	TypeName          string   `json:"typeName"`
-	BuildYear         int      `json:"buildYear"`
-	PriceAmount       int64    `json:"priceAmount"`
-	PriceCurrency     string   `json:"priceCurrency"`
+	ID                string                  `json:"id"`
+	Owner             string                  `json:"owner,omitempty"`
+	SerialNumber      string                  `json:"serialNumber,omitempty"`
+	Color             string                  `json:"color,omitempty"`
+	Country           string                  `json:"country,omitempty"`
+	Factory           string                  `json:"factory,omitempty"`
+	Pictures          []string                `json:"pictures"`
+	CoverPictureIndex int                     `json:"coverPictureIndex"`
+	Description       string                  `json:"description,omitempty"`
+	Brand             string                  `json:"brand"`
+	TypeName          string                  `json:"typeName"`
+	BuildYear         int                     `json:"buildYear"`
+	PriceAmount       int64                   `json:"priceAmount"`
+	PriceCurrency     string                  `json:"priceCurrency"`
+	Analysis          *guitarAnalysisResponse `json:"analysis,omitempty"`
+}
+
+func toAnalysisResponse(rec *guitaranalysis.Record) *guitarAnalysisResponse {
+	if rec == nil {
+		return nil
+	}
+	resp := &guitarAnalysisResponse{
+		Status:        rec.Status(),
+		VisualSummary: rec.VisualSummary(),
+		Tags:          rec.Tags(),
+		Confidence:    rec.Confidence(),
+		FailureReason: rec.FailureReason(),
+	}
+	if !rec.AnalyzedAt().IsZero() {
+		resp.AnalyzedAt = rec.AnalyzedAt().UTC().Format(time.RFC3339)
+	}
+	return resp
 }
 
 func toResponse(g *domain.Guitar) guitarResponse {
@@ -92,11 +121,13 @@ type meResponse struct {
 	AssistantByokConfigured  bool   `json:"assistantByokConfigured"`
 	AssistantLlmBaseURL      string `json:"assistantLlmBaseUrl,omitempty"`
 	AssistantLlmModel        string `json:"assistantLlmModel,omitempty"`
+	PhotoAnalysisEnabled     bool   `json:"photoAnalysisEnabled"`
 }
 
 // profilePatchRequest is the JSON payload for PATCH /me.
 type profilePatchRequest struct {
-	Username string `json:"username"`
+	Username             string `json:"username"`
+	PhotoAnalysisEnabled *bool  `json:"photoAnalysisEnabled,omitempty"`
 }
 
 type assistantBYOKPutRequest struct {
@@ -135,6 +166,7 @@ func toMeResponse(profile *profiledomain.Profile, isAdmin bool) meResponse {
 		AssistantByokConfigured: profile.AssistantBYOKConfigured(),
 		AssistantLlmBaseURL:     profile.AssistantLLMBaseURL(),
 		AssistantLlmModel:       profile.AssistantLLMModel(),
+		PhotoAnalysisEnabled:    profile.PhotoAnalysisEnabled(),
 	}
 }
 

@@ -16,9 +16,10 @@ Errors: `{ "error": "message" }` with appropriate HTTP status.
 |--------|------|-------------|
 | GET | `/guitar` | List guitars owned by authenticated user |
 | GET | `/guitar/{id}` | Single guitar |
-| POST | `/guitar` | Create |
-| PUT | `/guitar/{id}` | Full replace |
+| POST | `/guitar` | Create (triggers photo analysis when owner opted in) |
+| PUT | `/guitar/{id}` | Full replace (re-analyzes when pictures change) |
 | DELETE | `/guitar/{id}` | Delete |
+| POST | `/guitar/{id}/analyze` | Re-run photo analysis (owner only) |
 
 Go domain: [`internal/guitarcollection/domain/guitar.go`](../internal/guitarcollection/domain/guitar.go).
 
@@ -61,6 +62,19 @@ Clients **do not send** `id` or `owner`; the API assigns them.
 
 Same fields plus `id` and optional `owner` (Cognito `sub`).
 
+Optional `analysis` object (AI-detected, advisory):
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `status` | `"pending"` \| `"ready"` \| `"failed"` | |
+| `visualSummary` | string? | Present when `ready` |
+| `tags` | string[]? | Lowercase kebab-case visual tags |
+| `confidence` | number? | 0–1 when `ready` |
+| `failureReason` | string? | When `failed` |
+| `analyzedAt` | string? | RFC3339 when `ready` |
+
+Photo analysis runs after create/update when the owner has BYOK configured and `photoAnalysisEnabled: true`. Re-runs only when the picture URL set changes (fingerprint).
+
 ### Legacy records
 
 Guitars without `owner` are hidden from list until updated by an authenticated user (backfills ownership).
@@ -70,7 +84,7 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/me` | Profile + `isAdmin` + assistant BYOK status |
-| PATCH | `/me` | Update username |
+| PATCH | `/me` | Update username and/or photo analysis opt-in |
 | PUT | `/me/assistant-byok` | Store encrypted owner LLM API key (tier 2) |
 | DELETE | `/me/assistant-byok` | Remove owner LLM API key |
 
@@ -81,6 +95,18 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 | `assistantByokConfigured` | boolean | True when an encrypted key is stored |
 | `assistantLlmBaseUrl` | string? | Optional OpenAI-compatible base URL |
 | `assistantLlmModel` | string? | Optional model name |
+| `photoAnalysisEnabled` | boolean | True when owner opted in and BYOK is configured |
+
+### PATCH `/me` body
+
+```json
+{
+  "username": "my-handle",
+  "photoAnalysisEnabled": true
+}
+```
+
+`photoAnalysisEnabled` requires a configured assistant API key (400 otherwise). Clearing BYOK disables photo analysis.
 
 ### PUT `/me/assistant-byok` body
 
@@ -149,7 +175,7 @@ Populated by `cmd/crawler` (weekly GitHub Actions). Crawler writes only when own
 | 429 | Daily assistant quota exceeded (`ASSISTANT_DAILY_LIMIT`, default 10/day) |
 | 503 | Assistant not configured |
 
-Filter fields use **major** price units in JSON. Gallery filtering in the webapp mirrors the same shape. When `ASSISTANT_LLM_API_KEY` is unset, the server uses rule-based parsing only.
+Filter fields use **major** price units in JSON. Optional `tag` and `searchText` match stored AI analysis metadata (`GuitarAnalysis` table). Gallery filtering in the webapp mirrors the same shape. When `ASSISTANT_LLM_API_KEY` is unset, the server uses rule-based parsing only.
 
 ## Uploads
 

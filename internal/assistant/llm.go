@@ -96,6 +96,8 @@ func (o *OpenAICompatibleLLM) ParseFilter(ctx context.Context, message string, g
 		MaxPriceMajor *float64 `json:"maxPriceMajor"`
 		MinYear       *int     `json:"minYear"`
 		MaxYear       *int     `json:"maxYear"`
+		Tag           string   `json:"tag"`
+		SearchText    string   `json:"searchText"`
 	}
 	if err := json.Unmarshal([]byte(parsed.Choices[0].Message.Content), &out); err != nil {
 		return RuleLLM{}.ParseFilter(ctx, message, guitars)
@@ -108,6 +110,8 @@ func (o *OpenAICompatibleLLM) ParseFilter(ctx context.Context, message string, g
 		MaxPriceMajor: out.MaxPriceMajor,
 		MinYear:       out.MinYear,
 		MaxYear:       out.MaxYear,
+		Tag:           strings.TrimSpace(out.Tag),
+		SearchText:    strings.TrimSpace(out.SearchText),
 	}
 	reply := strings.TrimSpace(out.Message)
 	if reply == "" {
@@ -154,7 +158,8 @@ func buildLLMSystemPrompt(brands []string) string {
 		brandList = strings.Join(brands, ", ")
 	}
 	return fmt.Sprintf(`You help visitors filter a guitar collection. Brands in this collection: %s.
-Return JSON only with keys: message (short friendly reply), brand, typeName, color, minPriceMajor, maxPriceMajor, minYear, maxYear.
+Return JSON only with keys: message (short friendly reply), brand, typeName, color, minPriceMajor, maxPriceMajor, minYear, maxYear, tag, searchText.
+Use tag for visual features from AI metadata (e.g. sunburst, humbucker). Use searchText for free-text visual queries.
 Use major currency units for prices (e.g. 1000 for €1000). Omit unused fields or set them null.
 Never invent guitars. Only suggest filters; do not claim to mutate data.`, brandList)
 }

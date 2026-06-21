@@ -32,18 +32,37 @@ func sampleGuitars() []*domain.Guitar {
 }
 
 func TestApplyFilter_BrandAndMaxPrice(t *testing.T) {
-	matched := ApplyFilter(sampleGuitars(), Filter{Brand: "Fender", MaxPriceMajor: fp(2000)})
+	matched := ApplyFilter(sampleGuitars(), Filter{Brand: "Fender", MaxPriceMajor: fp(2000)}, nil)
 	if len(matched) != 2 {
 		t.Fatalf("want 2 Fenders under 2000, got %d", len(matched))
 	}
 }
 
 func TestApplyFilter_Color(t *testing.T) {
-	matched := ApplyFilter(sampleGuitars(), Filter{Color: "red"})
+	matched := ApplyFilter(sampleGuitars(), Filter{Color: "red"}, nil)
 	if len(matched) != 1 || matched[0].ID() != "2" {
 		t.Fatalf("want cherry red Gibson, got %+v", guitarIDs(matched))
 	}
 }
+
+func TestApplyFilter_Tag(t *testing.T) {
+	analysis := map[string]AnalysisSearch{
+		"1": stubAnalysis{tags: []string{"sunburst"}},
+		"2": stubAnalysis{tags: []string{"humbucker"}},
+	}
+	matched := ApplyFilter(sampleGuitars(), Filter{Tag: "sunburst"}, analysis)
+	if len(matched) != 1 || matched[0].ID() != "1" {
+		t.Fatalf("want sunburst guitar, got %+v", guitarIDs(matched))
+	}
+}
+
+type stubAnalysis struct {
+	blob string
+	tags []string
+}
+
+func (s stubAnalysis) SearchBlob() string { return s.blob }
+func (s stubAnalysis) Tags() []string     { return s.tags }
 
 func TestParseRules_UnderPrice(t *testing.T) {
 	f, _ := ParseRules("show guitars under 1000 euro", sampleGuitars())
@@ -54,7 +73,7 @@ func TestParseRules_UnderPrice(t *testing.T) {
 
 func TestService_Chat_RateLimit(t *testing.T) {
 	limiter := NewMemoryRateLimiter(1)
-	svc := NewService(stubLister{guitars: sampleGuitars()}, RuleLLM{}, limiter, nil, nil)
+	svc := NewService(stubLister{guitars: sampleGuitars()}, RuleLLM{}, limiter, nil, nil, nil)
 	ctx := t.Context()
 	req := ChatRequest{CollectionUserID: "owner-1", Message: "Fender", CallerUserID: "viewer-1"}
 	if _, err := svc.Chat(ctx, req); err != nil {

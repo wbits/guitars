@@ -10,7 +10,7 @@ Plan: [plans/guitars-assistant.md](plans/guitars-assistant.md). Instructions: [a
 - [ ] Optional: set `ASSISTANT_LLM_API_KEY` in production for natural-language beyond rules
 - [x] Tier 2: owner BYOK in webapp profile settings + encrypted storage on API
 - [ ] Production: set `ASSISTANT_BYOK_ENCRYPTION_KEY` (32-byte base64) to enable BYOK in AWS
-- [ ] Photo analysis on upload (tier-2 BYOK only) — async vision job → `GuitarAnalysis` metadata
+- [x] Photo analysis on upload (tier-2 BYOK only) — async vision job → `GuitarAnalysis` metadata
 - [ ] Assistant search over analysis metadata (tags + summary; cheap at query time)
 - [ ] Curator webapp chat + hosted MCP (Phase 2)
 - [ ] `research_guitar`, `presign_upload` MCP tools

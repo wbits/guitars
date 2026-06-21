@@ -72,6 +72,7 @@ func cloneProfile(profile *domain.Profile) *domain.Profile {
 		AssistantEncryptedAPIKey: profile.AssistantEncryptedAPIKey(),
 		AssistantLLMBaseURL:      profile.AssistantLLMBaseURL(),
 		AssistantLLMModel:        profile.AssistantLLMModel(),
+		PhotoAnalysisEnabled:     profile.PhotoAnalysisOptIn(),
 	})
 	if err != nil {
 		panic(err)

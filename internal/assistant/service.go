@@ -34,10 +34,11 @@ type Service struct {
 	tier1Limiter RateLimiter
 	byok         BYOKProvider
 	byokLimiter  RateLimiter
+	analysis     *GuitarAnalysisIndex
 }
 
 // NewService constructs an assistant service.
-func NewService(guitars GuitarLister, hostedLLM LLM, tier1Limiter RateLimiter, byok BYOKProvider, byokLimiter RateLimiter) *Service {
+func NewService(guitars GuitarLister, hostedLLM LLM, tier1Limiter RateLimiter, byok BYOKProvider, byokLimiter RateLimiter, analysis *GuitarAnalysisIndex) *Service {
 	if hostedLLM == nil {
 		hostedLLM = RuleLLM{}
 	}
@@ -53,6 +54,7 @@ func NewService(guitars GuitarLister, hostedLLM LLM, tier1Limiter RateLimiter, b
 		tier1Limiter: tier1Limiter,
 		byok:         byok,
 		byokLimiter:  byokLimiter,
+		analysis:     analysis,
 	}
 }
 
@@ -85,7 +87,15 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 		return ChatResponse{}, err
 	}
 
-	matched := ApplyFilter(guitars, filter)
+	analysisMap := map[string]AnalysisSearch{}
+	if s.analysis != nil {
+		analysisMap, err = s.analysis.MapForGuitars(ctx, guitarIDs(guitars))
+		if err != nil {
+			return ChatResponse{}, err
+		}
+	}
+
+	matched := ApplyFilter(guitars, filter, analysisMap)
 	if len(matched) == 0 && !filter.isEmpty() {
 		reply = strings.TrimSpace(reply) + fmt.Sprintf(" No guitars match (%d in collection).", len(guitars))
 	} else if !filter.isEmpty() {
