@@ -48,6 +48,12 @@ template.yaml                     # SAM stack
 
 Domain invariants live in Go (`internal/guitarcollection/domain/guitar.go`). MCP uses a zod mirror at `mcp/src/contracts/guitar.ts` — keep aligned when payloads change.
 
+## Storage
+
+- **Guitars** — DynamoDB table keyed by `id`
+- **Market logs** — separate DynamoDB table
+- **Pictures** — S3 + CDN (presigned upload via API)
+
 ## Authentication
 
 Production: **Amazon Cognito** JWT bearer tokens. The API maps token `sub` to collection ownership. Admins are in Cognito group `guitars-admins` (`isAdmin` on `GET /me`).
@@ -56,12 +62,10 @@ Local: bearer token via Secrets Manager (LocalStack) or legacy shared token for 
 
 ## MCP
 
-See [plans/mcp-server.md](plans/mcp-server.md).
-
 | Phase | Where | Transport |
 |-------|-------|-----------|
-| **1 (done)** | `mcp/` in this repo | stdio → REST API |
-| **2 (planned)** | New Lambda + `/mcp` route | Streamable HTTP on API Gateway |
+| **1 (done)** | `mcp/` in this repo | stdio → REST API — [`mcp/README.md`](../../mcp/README.md) |
+| **2 (planned)** | New Lambda + `/mcp` route | Streamable HTTP — [plans/mcp-server.md](plans/mcp-server.md) |
 
 ## Related documentation
 

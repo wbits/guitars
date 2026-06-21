@@ -24,12 +24,6 @@ Fixed choices — do not reverse lightly without discussion.
 - Zod contract in `mcp/src/contracts/guitar.ts` mirrors Go domain — keep in sync.
 - Market crawl via MCP dispatches GitHub Actions `crawl.yml` (no REST trigger).
 
-## Agent documentation
-
-- **`AGENTS.md`** at repo root → **`.agents/`** for API, crawler, MCP, infra.
-- **`guitars-webapp`** has its own `.agents/` for React-only concerns.
-- Session notes in `.agents/sessions/YYYY-MM-DD.md`.
-
 ## Git
 
 - Commits and deploy only on user request.

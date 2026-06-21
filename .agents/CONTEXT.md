@@ -16,8 +16,7 @@ Go Lambda HTTP API (GuitarCollection) for guitars.com — guitar CRUD, user prof
 
 ## Recent focus
 
-- **MCP Phase 1** moved here from `guitars-webapp` — local stdio adapter in `mcp/`
-- Agent documentation consolidated in `.agents/` for API, crawler, MCP, infra
+- MCP Phase 1 in `mcp/`; agent docs consolidated in `.agents/`
 
 ## Not started yet
 

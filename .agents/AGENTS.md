@@ -64,7 +64,7 @@ guitars/
 | Market crawler change | `internal/marketcrawler/`, `cmd/crawler/` |
 | MCP tool change | `mcp/src/tools/`, `mcp/README.md`, rebuild with `make mcp-build` |
 | Deploy API | `S3_BUCKET=… STACK_NAME=… make deploy` — see [runbook.md](runbook.md) |
-| Phase 2 hosted MCP | SAM template + new Lambda — see [plans/mcp-server.md](plans/mcp-server.md) |
+| Phase 2 hosted MCP | SAM template + new Lambda — see [plans/mcp-server.md](plans/mcp-server.md) (Phase 1: [`mcp/README.md`](../../mcp/README.md)) |
 
 ## Open work
 

@@ -17,6 +17,4 @@
 
 ## MCP Phase 1 — done
 
-- [x] `mcp/` package in this repo
-- [x] Guitar CRUD tools + optional crawl dispatch
-- [x] Tests and docs
+See [`mcp/`](../mcp/) and [`mcp/README.md`](../mcp/README.md).

@@ -22,6 +22,22 @@ Errors: `{ "error": "message" }` with appropriate HTTP status.
 
 Go domain: [`internal/guitarcollection/domain/guitar.go`](../internal/guitarcollection/domain/guitar.go).
 
+### Example POST/PUT body
+
+```json
+{
+  "brand": "Fender",
+  "typeName": "Stratocaster",
+  "buildYear": 1996,
+  "priceAmount": 199900,
+  "priceCurrency": "EUR",
+  "pictures": ["https://example.com/front.jpg"],
+  "coverPictureIndex": 0,
+  "serialNumber": "SN-12345",
+  "description": "1996 sunburst"
+}
+```
+
 ### POST/PUT body
 
 Clients **do not send** `id` or `owner`; the API assigns them.
