@@ -4,14 +4,14 @@
 
 Plan: [plans/guitars-assistant.md](plans/guitars-assistant.md). Instructions: [assistants/](assistants/).
 
-- [ ] `search_collection` tool (brand, price range, year filters)
-- [ ] Viewer read-only tools (`list_collection_guitars`, public `get_guitar` if needed)
-- [ ] Assistant Lambda + `POST /assistant/chat` (or webapp-only backend)
-- [ ] Webapp viewer chat on collection pages (`guitars-webapp`)
-- [ ] Webapp curator chat on owner dashboard (`guitars-webapp`)
-- [ ] `research_guitar` fetch-only tool + confirm-before-update flow
-- [ ] `presign_upload` MCP tool
-- [ ] Cursor rule/skill pointing power users at `assistants/curator.md`
+- [x] Tier 1: `POST /assistant/chat` + DynamoDB rate limit + rule/LLM parse
+- [x] Webapp viewer chat on collection pages (`guitars-webapp`)
+- [x] Client-side `filterGuitars` (no list API query params)
+- [ ] Optional: set `ASSISTANT_LLM_API_KEY` in production for natural-language beyond rules
+- [ ] Tier 2: owner BYOK in webapp settings
+- [ ] Curator webapp chat + hosted MCP (Phase 2)
+- [ ] `research_guitar`, `presign_upload` MCP tools
+- [ ] Cursor rule/skill for `assistants/curator.md`
 
 ## MCP — Phase 2 (hosted)
 

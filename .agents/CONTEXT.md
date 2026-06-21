@@ -16,14 +16,13 @@ Go Lambda HTTP API (GuitarCollection) for guitars.com — guitar CRUD, user prof
 
 ## Recent focus
 
-- MCP Phase 1 in `mcp/`; agent docs consolidated in `.agents/`
-- **guitars-assistant** design: viewer (read-only) + curator (manage) profiles; instructions in `.agents/assistants/`
+- **guitars-assistant tier 1:** `POST /assistant/chat`, rate limits, webapp viewer chat + client-side gallery filters
+- MCP Phase 1 in `mcp/`; agent docs in `.agents/`
 
 ## Not started yet
 
-- guitars-assistant implementation (webapp chat, Assistant Lambda, new MCP tools) — see [plans/guitars-assistant.md](plans/guitars-assistant.md)
-- Phase 2 hosted MCP on API Gateway (Streamable HTTP Lambda)
-- Wire MCP in Cursor: `make mcp-build` + `.cursor/mcp.json`
+- guitars-assistant tier 2 (owner BYOK)
+- Curator webapp chat; Phase 2 hosted MCP — see [plans/guitars-assistant.md](plans/guitars-assistant.md)
 
 ## Quick verify
 

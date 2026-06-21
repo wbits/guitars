@@ -20,6 +20,14 @@ Parameters:
     Type: String
     Default: UserProfiles
     Description: DynamoDB table name that holds user profile records.
+  AssistantUsageTableName:
+    Type: String
+    Default: AssistantUsage
+    Description: DynamoDB table for hosted assistant daily rate limits.
+  AssistantDailyLimit:
+    Type: Number
+    Default: 10
+    Description: Max viewer assistant messages per authenticated user per day (tier 1).
   ApiDomainName:
     Type: String
     Default: guitars.brouwers.club
@@ -45,13 +53,15 @@ Globals:
   Function:
     Runtime: provided.al2
     Architectures: [x86_64]
-    Timeout: 10
+    Timeout: 30
     MemorySize: 256
     Environment:
       Variables:
         GUITARS_TABLE: !Ref TableName
         MARKET_LOGS_TABLE: !Ref MarketLogsTableName
         USER_PROFILES_TABLE: !Ref UserProfilesTableName
+        ASSISTANT_USAGE_TABLE: !Ref AssistantUsageTableName
+        ASSISTANT_DAILY_LIMIT: !Ref AssistantDailyLimit
         AWS_ENDPOINT_URL: ""
         COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
@@ -168,6 +178,21 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  AssistantUsageTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref AssistantUsageTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -180,6 +205,8 @@ Resources:
             TableName: !Ref MarketLogsTableName
         - DynamoDBCrudPolicy:
             TableName: !Ref UserProfilesTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AssistantUsageTableName
         - !If
           - HasImagesBucket
           - Statement:
@@ -305,6 +332,16 @@ Resources:
           Type: Api
           Properties:
             Path: /collections/{userId}/market-log
+            Method: options
+        AssistantChat:
+          Type: Api
+          Properties:
+            Path: /assistant/chat
+            Method: post
+        OptionsAssistantChat:
+          Type: Api
+          Properties:
+            Path: /assistant/chat
             Method: options
 
   ApiCertificate:

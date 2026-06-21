@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 
+	"github.com/wbits/guitars/internal/assistant"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
@@ -39,7 +40,7 @@ func newTestHandler() *Handler {
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins")
+	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistant.NewService(svc, assistant.RuleLLM{}, assistant.NewMemoryRateLimiter(100)))
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -465,5 +466,30 @@ func TestHandler_MarketLog_CreateAndList(t *testing.T) {
 	}
 	if len(logs) != 1 || logs[0].Source != "reverb" || logs[0].Action != "for_sale" {
 		t.Fatalf("unexpected logs: %+v", logs)
+	}
+}
+
+func TestHandler_AssistantChat_FiltersCollection(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+	createResp, _ := h.Handle(ctx, reqWithAuth("POST", "/guitar", validBody()))
+	if createResp.StatusCode != 201 {
+		t.Fatalf("create: %d %s", createResp.StatusCode, createResp.Body)
+	}
+
+	body := `{"collectionUserId":"local-dev-user","message":"Fender under 2000 euro"}`
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/assistant/chat", body))
+	if resp.StatusCode != 200 {
+		t.Fatalf("assistant chat: want 200, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var out assistantChatResponse
+	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Message == "" {
+		t.Fatal("expected message")
+	}
+	if len(out.MatchingIDs) != 1 {
+		t.Fatalf("matching ids: %+v message: %q filter: %+v body: %s", out.MatchingIDs, out.Message, out.Filter, resp.Body)
 	}
 }

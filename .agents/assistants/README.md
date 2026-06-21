@@ -34,3 +34,12 @@ MCP has **no system prompt**. Tool descriptions in `mcp/src/tools/` say what eac
 | Cursor / MCP client (Phase 2) | curator | Cursor rule or skill → `curator.md` | Hosted MCP, curator tools |
 
 Implementation plan: [`.agents/plans/guitars-assistant.md`](../plans/guitars-assistant.md).
+
+## Hosting tiers
+
+| Tier | Status | Who pays for LLM |
+|------|--------|------------------|
+| **1 — hosted** | Implemented | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) |
+| **2 — BYOK** | Planned | Collection owner (optional settings key) |
+
+Tier 1 uses strict daily rate limits per authenticated user (default 10/day).

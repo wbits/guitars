@@ -20,13 +20,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/google/uuid"
 
+	"github.com/wbits/guitars/internal/assistant"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/storage"
+	httpapi "github.com/wbits/guitars/internal/guitarcollection/interfaces/http"
 	profileapp "github.com/wbits/guitars/internal/userprofile/application"
 	profilepersistence "github.com/wbits/guitars/internal/userprofile/infrastructure/persistence"
-	httpapi "github.com/wbits/guitars/internal/guitarcollection/interfaces/http"
 )
 
 // uuidGen implements application.IDGenerator using UUIDv4.
@@ -108,9 +109,23 @@ func main() {
 		application.ParseCrawlerUserIDs(os.Getenv("MARKET_CRAWLER_USER_ID")),
 		profiles,
 	)
-	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"))
+	dailyLimit := assistant.ParseDailyLimit(os.Getenv("ASSISTANT_DAILY_LIMIT"), 10)
+	var limiter assistant.RateLimiter
+	if usageTable := os.Getenv("ASSISTANT_USAGE_TABLE"); usageTable != "" {
+		limiter = &assistant.DynamoRateLimiter{Client: ddb, Table: usageTable, Limit: dailyLimit}
+	} else {
+		limiter = assistant.NewMemoryRateLimiter(dailyLimit)
+	}
+	llm := &assistant.OpenAICompatibleLLM{
+		APIKey:  os.Getenv("ASSISTANT_LLM_API_KEY"),
+		BaseURL: os.Getenv("ASSISTANT_LLM_BASE_URL"),
+		Model:   os.Getenv("ASSISTANT_LLM_MODEL"),
+	}
+	assistantSvc := assistant.NewService(svc, llm, limiter)
 
-	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, auth=%s, uploads=%t)", tableName, marketLogsTable, profilesTable, auth.AuthenticatorMode(), presigner != nil)
+	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"), assistantSvc)
+
+	log.Printf("guitars lambda starting (table=%s, marketLogs=%s, profiles=%s, auth=%s, uploads=%t, assistantLimit=%d)", tableName, marketLogsTable, profilesTable, auth.AuthenticatorMode(), presigner != nil, dailyLimit)
 	lambda.Start(handler.Handle)
 }
 

@@ -34,6 +34,15 @@ Fixed choices — do not reverse lightly without discussion.
 - **Curator delivery:** webapp owner chat + hosted MCP (Phase 2) for Cursor etc.
 - **Confirm before write** for create/update and market crawl; web research never auto-writes descriptions.
 
+## guitars-assistant — hosting tiers
+
+| Tier | Status | LLM billing | Rate limit |
+|------|--------|-------------|------------|
+| **1 — hosted** | Implementing | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) | Strict daily cap per Cognito `sub` (default 10/day) |
+| **2 — BYOK** | Planned | Owner API key in settings (encrypted) | Relaxed on operator side; abuse caps only |
+
+Start with tier 1 only. Tier 2 is documented in [plans/guitars-assistant.md](plans/guitars-assistant.md) but not built yet.
+
 ## Git
 
 - Commits and deploy only on user request.

@@ -40,11 +40,11 @@ One tool implementation (`mcp/src/tools/`); two **tool registries** (viewer vs c
 
 | Phase | Deliverable | Repo |
 |-------|-------------|------|
-| **A** | Instruction files + backlog (this plan) | `wbits/guitars` |
-| **B** | `search_collection` tool + viewer read tools | `mcp/` |
-| **C** | Webapp viewer chat + Assistant Lambda | `guitars-webapp` + API |
-| **D** | Phase 2 hosted MCP (curator tools) | `wbits/guitars` — [mcp-server.md](mcp-server.md) |
-| **E** | `research_guitar`, `presign_upload`; curator webapp chat | both |
+| **A** | Instruction files + backlog (this plan) | `wbits/guitars` | Done |
+| **B** | `POST /assistant/chat` + rate limit + webapp viewer chat + `filterGuitars` | both | Done (tier 1) |
+| **C** | Set `ASSISTANT_LLM_API_KEY` in prod; tune limits | `wbits/guitars` | |
+| **D** | Phase 2 hosted MCP (curator tools) | `wbits/guitars` — [mcp-server.md](mcp-server.md) | |
+| **E** | Tier 2 owner BYOK + curator webapp chat | both | |
 
 ## Gaps vs today
 

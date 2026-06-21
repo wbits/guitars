@@ -23,7 +23,26 @@ API at <http://127.0.0.1:3000>:
 
 ```bash
 curl -H "Authorization: Bearer local-dev-token" http://127.0.0.1:3000/guitar
+curl -H "Authorization: Bearer local-dev-token" -H "Content-Type: application/json" \
+  -d '{"collectionUserId":"local-dev-user","message":"Fenders under 2000 euro"}' \
+  http://127.0.0.1:3000/assistant/chat
 ```
+
+## Viewer assistant (tier 1)
+
+Hosted on the API Lambda. Without `ASSISTANT_LLM_API_KEY`, uses rule-based parsing only.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ASSISTANT_USAGE_TABLE` | (empty → in-memory) | DynamoDB daily counter table |
+| `ASSISTANT_DAILY_LIMIT` | `10` | Max messages per Cognito `sub` per UTC day |
+| `ASSISTANT_LLM_API_KEY` | (empty) | OpenAI-compatible API key (operator account) |
+| `ASSISTANT_LLM_BASE_URL` | OpenAI | Compatible API base URL |
+| `ASSISTANT_LLM_MODEL` | `gpt-4o-mini` | Chat model |
+
+Tier 2 (owner BYOK) is planned, not implemented. See [plans/guitars-assistant.md](plans/guitars-assistant.md).
+
+Webapp: chat on `/collections/:userId` in **guitars-webapp**.
 
 ## API — tests, lint, CI
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 
+	"github.com/wbits/guitars/internal/assistant"
 	"github.com/wbits/guitars/internal/guitarcollection/application"
 	"github.com/wbits/guitars/internal/guitarcollection/domain"
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/auth"
@@ -31,6 +32,7 @@ type Handler struct {
 	svc        *application.Service
 	marketLogs *application.MarketLogService
 	profiles   *profileapp.Service
+	assistant  *assistant.Service
 	auth       auth.Authenticator
 	presigner  *storage.Presigner
 	adminGroup string
@@ -40,8 +42,8 @@ type Handler struct {
 // authenticator. Both service arguments are required. presigner may be nil
 // when image uploads are not configured. profiles may be nil to disable
 // profile endpoints. adminGroup names the Cognito group that grants admin access.
-func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner, adminGroup string) *Handler {
-	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, auth: a, presigner: presigner, adminGroup: adminGroup}
+func NewHandler(svc *application.Service, marketLogs *application.MarketLogService, profiles *profileapp.Service, a auth.Authenticator, presigner *storage.Presigner, adminGroup string, assistantSvc *assistant.Service) *Handler {
+	return &Handler{svc: svc, marketLogs: marketLogs, profiles: profiles, assistant: assistantSvc, auth: a, presigner: presigner, adminGroup: adminGroup}
 }
 
 var guitarItemPath = regexp.MustCompile(`^/guitar/([^/]+)/?$`)
@@ -80,6 +82,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return h.create(ctx, principal.UserID, req.Body)
 	case path == "/upload/presign" && method == "POST":
 		return h.presignUpload(ctx, req.Body)
+	case path == "/assistant/chat" && method == "POST":
+		return h.assistantChat(ctx, principal, req.Body)
 	default:
 		if m := collectionMarketCrawlPath.FindStringSubmatch(path); m != nil {
 			if method == "PATCH" {

@@ -90,6 +90,43 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 
 Populated by `cmd/crawler` (weekly GitHub Actions). Crawler writes only when owner has `marketCrawlEnabled: true`.
 
+## Assistant (viewer, tier 1)
+
+Hosted collection assistant for browsing users. Operator-owned LLM key; strict per-user daily rate limit. Tier 2 (owner BYOK) is planned, not implemented.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/assistant/chat` | Viewer chat: natural language → filter + matching guitar ids |
+
+### POST `/assistant/chat` body
+
+```json
+{
+  "collectionUserId": "cognito-sub-or-local-dev-user",
+  "message": "Show Fenders under 1000 euro"
+}
+```
+
+### Response
+
+```json
+{
+  "message": "Filtering for Fender, under €1000. Showing 2 of 5.",
+  "matchingIds": ["id-1", "id-2"],
+  "filter": {
+    "brand": "Fender",
+    "maxPriceMajor": 1000
+  }
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 429 | Daily assistant quota exceeded (`ASSISTANT_DAILY_LIMIT`, default 10/day) |
+| 503 | Assistant not configured |
+
+Filter fields use **major** price units in JSON. Gallery filtering in the webapp mirrors the same shape. When `ASSISTANT_LLM_API_KEY` is unset, the server uses rule-based parsing only.
+
 ## Uploads
 
 | Method | Path | Description |

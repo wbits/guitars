@@ -9,6 +9,7 @@ REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 TABLE_NAME="${GUITARS_TABLE:-Guitars}"
 MARKET_LOGS_TABLE="${MARKET_LOGS_TABLE:-MarketLogs}"
 USER_PROFILES_TABLE="${USER_PROFILES_TABLE:-UserProfiles}"
+ASSISTANT_USAGE_TABLE="${ASSISTANT_USAGE_TABLE:-AssistantUsage}"
 SECRET_NAME="${BEARER_SECRET_ID:-guitars/bearer-token}"
 BEARER_TOKEN="${BEARER_TOKEN:-local-dev-token}"
 IMAGES_BUCKET="${IMAGES_BUCKET:-guitars-local}"
@@ -64,6 +65,18 @@ aws --endpoint-url="${ENDPOINT}" dynamodb create-table \
   ]' \
   --billing-mode PAY_PER_REQUEST \
   >/dev/null 2>&1 || echo "  (table already exists)"
+
+echo "Creating DynamoDB table ${ASSISTANT_USAGE_TABLE} ..."
+aws --endpoint-url="${ENDPOINT}" dynamodb create-table \
+  --table-name "${ASSISTANT_USAGE_TABLE}" \
+  --attribute-definitions AttributeName=pk,AttributeType=S \
+  --key-schema AttributeName=pk,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  >/dev/null 2>&1 || echo "  (table already exists)"
+aws --endpoint-url="${ENDPOINT}" dynamodb update-time-to-live \
+  --table-name "${ASSISTANT_USAGE_TABLE}" \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAt" \
+  >/dev/null 2>&1 || true
 
 echo "Creating Secrets Manager secret ${SECRET_NAME} ..."
 if ! aws --endpoint-url="${ENDPOINT}" secretsmanager describe-secret \
