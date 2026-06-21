@@ -43,9 +43,7 @@ Fixed choices — do not reverse lightly without discussion.
 | **1 — hosted** | Done | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) | Strict daily cap per Cognito `sub` (default 10/day) |
 | **2 — BYOK** | Done | Owner API key in settings (encrypted) | Relaxed on operator side; abuse caps only |
 
-Tier 2 BYOK key is intended for **curator assistant chat** and **photo analysis generation** (same encrypted owner key; separate opt-in toggles).
-
-Start with tier 1 only. Tier 2 BYOK is implemented (profile settings + assistant routing); photo analysis generation still planned.
+Tier 2 BYOK key is used for **curator assistant chat** and **photo analysis generation** (same encrypted owner key; separate opt-in toggles). Tier 1 and tier 2 BYOK are both shipped.
 
 ## Photo analysis (vision metadata)
 
@@ -58,12 +56,30 @@ Implemented 2026-06-21 — SQS queue, DLQ, and worker Lambda.
 - **Async worker** — SQS queue + worker Lambda; API enqueues and returns 202. Re-run only when the cover picture selection changes (`coverPictureIndex` or cover URL), not when other gallery photos change.
 - **Cover photo only** — vision analyzes `pictures[coverPictureIndex]` (one image per guitar).
 - **Trust** — label AI-detected metadata; show confidence where useful.
+- **Sync analyze for add-from-photo** — `POST /me/analyze-photo` runs vision inline during the add-guitar wizard; async worker still handles post-upload re-analysis on existing guitars.
 
-Implementation belongs in API worker + optional curator UI; see [backlog.md](backlog.md).
+## Collection visibility
+
+- **`hiddenInCollection` (default false)** — owner can hide a guitar from gallery listings while keeping it in their account; open by id still works.
+- **Public collections never show hidden guitars** — `GET /collections/{userId}/guitar` filters them out; owner list uses `GET /guitar?includeHidden=true` when needed.
+- **Hide/show endpoints** — `POST /guitar/{id}/hide` and `/show`; owner-only.
+
+## Add guitar (BYOK photo-first)
+
+- **Photo-first wizard when BYOK is usable** — upload or URL → analyze → review form; manual form remains available.
+- **Price is always human-entered** — AI never guesses price; required before create.
+- **Inspect-before-add default** — photo-first create can leave “Add to collection gallery” unchecked; API creates then hides when requested (`hiddenInCollection`).
+
+## Tag search and similarity
+
+- **Similar guitars = shared AI tags** — tag cloud on detail page; `/guitars/similar` and `/collections/{userId}/similar` filter by selected tags client-side.
+- **Source guitar stays in similar results** — the guitar you navigated from is included when its tags match.
+- **Collection assistant tag hints** — local tag matching in chat complements LLM filter parsing (no extra API in v1).
 
 ## Agent session memory
 
 - **Record decisions via skill** — when the user says `/record-decision` (or similar), follow [`.cursor/skills/record-decision/SKILL.md`](../.cursor/skills/record-decision/SKILL.md) and persist to `.agents/decisions.md`, backlog, plans, or `CONTEXT.md`. Do not commit unless asked.
+- **`/cpd` skill** — when the user says `/cpd`, follow [`.cursor/skills/cpd/SKILL.md`](../.cursor/skills/cpd/SKILL.md): commit → push → deploy API and/or webapp. Deploy vars live in gitignored `.agents/config/cpd.env` (see [cpd.env.example](config/cpd.env.example)); `/cpd` is explicit permission to ship.
 
 ## Git
 

@@ -16,17 +16,18 @@ Go Lambda HTTP API (GuitarCollection) for guitars.com — guitar CRUD, user prof
 
 ## Recent focus
 
-- **guitars-assistant tier 1:** shipped — `POST /assistant/chat`, rate limits, webapp viewer chat (closed by default, voice input), client-side gallery filters
-- **guitars-assistant tier 2 BYOK:** encrypted owner API key on profile, assistant uses owner key on own collection
-- **Photo analysis + tier 2 BYOK:** direction decided; photo analysis not implemented — see [decisions.md](decisions.md)
-- **`/record-decision` skill** — [`.cursor/skills/record-decision/`](../.cursor/skills/record-decision/) for persisting design choices to `.agents/`
+- **Collection visibility** — `hiddenInCollection`, hide/show API, webapp list toggle and detail controls
+- **BYOK photo-first add guitar** — `POST /me/analyze-photo`, wizard in webapp, optional seed analysis on create
+- **Tag search & similar guitars** — tag cloud, similar routes, collection chat tag matching
+- **Agent skills** — `/record-decision`, `/cpd` (commit-push-deploy)
+- **guitars-assistant** tier 1 + tier 2 BYOK shipped; async photo analysis worker + sync analyze-photo for add flow
 - MCP Phase 1 in `mcp/`; agent docs in `.agents/`
 
 ## Not started yet
 
-- guitars-assistant tier 2 BYOK (profile settings + assistant routing)
-- Photo analysis on upload (tier-2 BYOK; decision in [decisions.md](decisions.md))
 - Curator webapp chat; Phase 2 hosted MCP — see [plans/guitars-assistant.md](plans/guitars-assistant.md)
+- Assistant search over stored analysis metadata (tags/summary at query time)
+- Security hardening backlog — see [backlog.md](backlog.md)
 
 ## Quick verify
 
