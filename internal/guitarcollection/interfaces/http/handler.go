@@ -535,8 +535,35 @@ func analysisErrorToResponse(err error) (events.APIGatewayProxyResponse, error) 
 	case guitaranalysis.IsValidationError(err):
 		return jsonResponse(400, errorResponse{Error: err.Error()})
 	default:
+		if msg := visionErrorMessage(err); msg != "" {
+			return jsonResponse(502, errorResponse{Error: msg})
+		}
 		return jsonResponse(502, errorResponse{Error: "photo analysis failed"})
 	}
+}
+
+func visionErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "api key") || strings.Contains(lower, "incorrect api key") {
+		return "OpenAI rejected the API key — check your assistant key in profile settings"
+	}
+	if strings.Contains(lower, "429") || strings.Contains(lower, "quota") || strings.Contains(lower, "rate limit") {
+		return "OpenAI quota or rate limit exceeded — check billing on your API account"
+	}
+	if strings.Contains(lower, "vision api status") {
+		return msg
+	}
+	if strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded") {
+		return "Photo analysis timed out — try again or use a smaller image"
+	}
+	return ""
 }
 
 func jsonResponse(status int, body interface{}) (events.APIGatewayProxyResponse, error) {

@@ -366,6 +366,16 @@ Resources:
           Properties:
             Path: /me/reanalyze-collection
             Method: options
+        AnalyzePhoto:
+          Type: Api
+          Properties:
+            Path: /me/analyze-photo
+            Method: post
+        OptionsAnalyzePhoto:
+          Type: Api
+          Properties:
+            Path: /me/analyze-photo
+            Method: options
         AnalyzeGuitar:
           Type: Api
           Properties:
@@ -375,6 +385,26 @@ Resources:
           Type: Api
           Properties:
             Path: /guitar/{id}/analyze
+            Method: options
+        HideGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/hide
+            Method: post
+        OptionsHideGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/hide
+            Method: options
+        ShowGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/show
+            Method: post
+        OptionsShowGuitar:
+          Type: Api
+          Properties:
+            Path: /guitar/{id}/show
             Method: options
         ListCollections:
           Type: Api
