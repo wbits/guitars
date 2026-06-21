@@ -24,6 +24,16 @@ Fixed choices — do not reverse lightly without discussion.
 - Zod contract in `mcp/src/contracts/guitar.ts` mirrors Go domain — keep in sync.
 - Market crawl via MCP dispatches GitHub Actions `crawl.yml` (no REST trigger).
 
+## guitars-assistant
+
+- **Two profiles:** **viewer** (read-only, collection page) and **curator** (owner manage + MCP power users).
+- **Instructions** in `.agents/assistants/` (`viewer.md`, `curator.md`, `shared.md`) — not in MCP server or `.cursor/mcp.json`.
+- **`.agents/AGENTS.md`** is for coding agents on this repo; product assistant persona is separate.
+- **One tool core** in `mcp/src/tools/`; viewer vs curator = which tools are registered per session.
+- **Viewer delivery:** webapp chat only (filters/explains; should drive gallery UI when possible).
+- **Curator delivery:** webapp owner chat + hosted MCP (Phase 2) for Cursor etc.
+- **Confirm before write** for create/update and market crawl; web research never auto-writes descriptions.
+
 ## Git
 
 - Commits and deploy only on user request.

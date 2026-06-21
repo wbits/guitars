@@ -67,10 +67,40 @@ Local: bearer token via Secrets Manager (LocalStack) or legacy shared token for 
 | **1 (done)** | `mcp/` in this repo | stdio → REST API — [`mcp/README.md`](../../mcp/README.md) |
 | **2 (planned)** | New Lambda + `/mcp` route | Streamable HTTP — [plans/mcp-server.md](plans/mcp-server.md) |
 
+## guitars-assistant (planned)
+
+End-user AI with two capability profiles sharing `mcp/src/tools/`:
+
+| Profile | Audience | Surface | Instructions |
+|---------|----------|---------|--------------|
+| **viewer** | Collection browsers | Webapp chat on `/collections/{userId}` | [assistants/viewer.md](assistants/viewer.md) |
+| **curator** | Collection owners | Webapp owner chat + MCP clients | [assistants/curator.md](assistants/curator.md) |
+
+Shared domain context: [assistants/shared.md](assistants/shared.md). Full plan: [plans/guitars-assistant.md](plans/guitars-assistant.md).
+
+```mermaid
+flowchart TB
+  ViewerChat[Webapp viewer chat]
+  CuratorChat[Webapp curator chat]
+  McpClient[MCP client]
+  AssistantLambda[Assistant Lambda]
+  McpLambda[MCP Lambda]
+  Tools[mcp/src/tools]
+  API[Go REST API]
+
+  ViewerChat --> AssistantLambda
+  CuratorChat --> AssistantLambda
+  McpClient --> McpLambda
+  AssistantLambda --> Tools
+  McpLambda --> Tools
+  Tools --> API
+```
+
 ## Related documentation
 
 | Topic | File |
 |-------|------|
 | HTTP API | [api-contract.md](api-contract.md) |
 | Operations | [runbook.md](runbook.md) |
+| guitars-assistant | [assistants/README.md](assistants/README.md), [plans/guitars-assistant.md](plans/guitars-assistant.md) |
 | Webapp (React) | [guitars-webapp AGENTS.md](https://github.com/wbits/guitars-webapp/blob/master/AGENTS.md) |

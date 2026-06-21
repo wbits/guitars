@@ -71,3 +71,5 @@ cd mcp && npm test
 ## Architecture notes
 
 Tool handlers and the API client are transport-agnostic so they can be reused for Phase 2 (hosted MCP on API Gateway). See [`.agents/plans/mcp-server.md`](../.agents/plans/mcp-server.md).
+
+**Product assistant persona** (viewer vs curator, confirm-before-write) lives in [`.agents/assistants/`](../.agents/assistants/) — not in this MCP server. MCP exposes tools; clients or the webapp Assistant Lambda load the markdown prompts.

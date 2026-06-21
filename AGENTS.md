@@ -12,6 +12,7 @@ Instructions and session memory for AI agents live in **[`.agents/AGENTS.md`](.a
 | [`.agents/decisions.md`](.agents/decisions.md) | Fixed architectural choices |
 | [`.agents/backlog.md`](.agents/backlog.md) | Open ideas and planned work |
 | [`.agents/plans/`](.agents/plans/) | Implementation plans |
+| [`.agents/assistants/`](.agents/assistants/) | guitars-assistant product prompts (viewer / curator) |
 | [`.agents/config/`](.agents/config/) | Example configs (no secrets) |
 | [`.agents/sessions/`](.agents/sessions/) | Session notes |
 
