@@ -29,13 +29,14 @@ type visionResult struct {
 	Confidence    float64  `json:"confidence"`
 }
 
-func (v *VisionAnalyzer) AnalyzePictures(ctx context.Context, creds VisionCredentials, pictureURLs []string, guitarBrand, guitarType string) (visionResult, error) {
+// AnalyzeCoverPicture analyzes the guitar cover photo only.
+func (v *VisionAnalyzer) AnalyzeCoverPicture(ctx context.Context, creds VisionCredentials, coverURL, guitarBrand, guitarType string) (visionResult, error) {
 	if v == nil {
 		return visionResult{}, fmt.Errorf("vision analyzer not configured")
 	}
-	urls := limitPictureURLs(pictureURLs, 3)
-	if len(urls) == 0 {
-		return visionResult{}, InvalidField("pictures", "requires at least one image URL")
+	coverURL = strings.TrimSpace(coverURL)
+	if coverURL == "" {
+		return visionResult{}, InvalidField("coverPicture", "requires a cover image URL")
 	}
 	model := strings.TrimSpace(creds.Model)
 	if model == "" {
@@ -44,16 +45,14 @@ func (v *VisionAnalyzer) AnalyzePictures(ctx context.Context, creds VisionCreden
 	content := []map[string]any{
 		{
 			"type": "text",
-			"text": fmt.Sprintf(`Analyze these guitar photos for a collection catalog. The owner entered brand=%q model=%q — treat that as context only; describe what you see.
+			"text": fmt.Sprintf(`Analyze this guitar cover photo for a collection catalog. The owner entered brand=%q model=%q — treat that as context only; describe what you see.
 Return JSON only with keys: visualSummary (2-3 sentences), tags (array of lowercase kebab-case visual tags like "sunburst", "humbucker", "maple-neck"), confidence (0-1).
 Do not guess serial numbers or exact year. Focus on visible features useful for search.`, guitarBrand, guitarType),
 		},
-	}
-	for _, url := range urls {
-		content = append(content, map[string]any{
-			"type": "image_url",
-			"image_url": map[string]string{"url": url},
-		})
+		{
+			"type":      "image_url",
+			"image_url": map[string]string{"url": coverURL},
+		},
 	}
 	body, err := json.Marshal(map[string]any{
 		"model": model,
@@ -78,7 +77,7 @@ Do not guess serial numbers or exact year. Focus on visible features useful for 
 	req.Header.Set("Content-Type", "application/json")
 	client := v.Client
 	if client == nil {
-		client = &http.Client{Timeout: 45 * time.Second}
+		client = &http.Client{Timeout: 25 * time.Second}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -112,21 +111,6 @@ Do not guess serial numbers or exact year. Focus on visible features useful for 
 		out.Confidence = 0.7
 	}
 	return out, nil
-}
-
-func limitPictureURLs(urls []string, max int) []string {
-	out := make([]string, 0, max)
-	for _, u := range urls {
-		u = strings.TrimSpace(u)
-		if u == "" {
-			continue
-		}
-		out = append(out, u)
-		if len(out) >= max {
-			break
-		}
-	}
-	return out
 }
 
 func truncate(s string, n int) string {

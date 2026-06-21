@@ -16,7 +16,7 @@ type Record struct {
 	guitarID           string
 	ownerID            string
 	status             string
-	picturesFingerprint string
+	picturesFingerprint string // cover index + URL fingerprint (legacy field name)
 	visualSummary      string
 	tags               []string
 	confidence         float64

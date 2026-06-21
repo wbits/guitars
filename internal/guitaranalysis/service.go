@@ -50,16 +50,22 @@ type ReanalyzeCollectionResult struct {
 type analyzeOpts struct {
 	requireOptIn bool
 	force        bool
+	runVision    bool
+}
+
+// ScheduleIfEligible marks analysis pending when opted in and pictures changed, without calling vision.
+func (s *Service) ScheduleIfEligible(ctx context.Context, guitar *domain.Guitar) (*Record, error) {
+	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: true, force: false, runVision: false})
 }
 
 // AnalyzeIfEligible runs vision analysis when the owner opted in with BYOK and pictures changed.
 func (s *Service) AnalyzeIfEligible(ctx context.Context, guitar *domain.Guitar) (*Record, error) {
-	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: true, force: false})
+	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: true, force: false, runVision: true})
 }
 
 // Reanalyze runs vision analysis for an owner guitar using BYOK, even when pictures are unchanged.
 func (s *Service) Reanalyze(ctx context.Context, guitar *domain.Guitar) (*Record, error) {
-	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true})
+	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true, runVision: true})
 }
 
 // ReanalyzeCollection re-runs photo analysis for every guitar owned by the caller with pictures.
@@ -84,11 +90,11 @@ func (s *Service) ReanalyzeCollection(ctx context.Context, ownerID string, guita
 			result.Skipped++
 			continue
 		}
-		if len(guitar.Pictures()) == 0 {
+		if len(guitar.Pictures()) == 0 || CoverPictureURL(guitar) == "" {
 			result.Skipped++
 			continue
 		}
-		if _, err := s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true}); err != nil {
+		if _, err := s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true, runVision: true}); err != nil {
 			result.Failed++
 			continue
 		}
@@ -128,7 +134,11 @@ func (s *Service) analyze(ctx context.Context, guitar *domain.Guitar, opts analy
 	if len(pictures) == 0 {
 		return nil, nil
 	}
-	fingerprint := PicturesFingerprint(pictures)
+	coverURL := CoverPictureURL(guitar)
+	if coverURL == "" {
+		return nil, nil
+	}
+	fingerprint := CoverFingerprintForGuitar(guitar)
 	existing, err := s.repo.FindByGuitarID(ctx, guitar.ID())
 	if err != nil {
 		return nil, err
@@ -143,12 +153,15 @@ func (s *Service) analyze(ctx context.Context, guitar *domain.Guitar, opts analy
 	if err := s.repo.Save(ctx, record); err != nil {
 		return nil, err
 	}
+	if !opts.runVision {
+		return record, nil
+	}
 	if s.vision == nil {
 		record.SetFailed(fingerprint, "vision analyzer not configured")
 		_ = s.repo.Save(ctx, record)
 		return record, nil
 	}
-	result, err := s.vision.AnalyzePictures(ctx, creds, pictures, guitar.Brand(), guitar.TypeName())
+	result, err := s.vision.AnalyzeCoverPicture(ctx, creds, coverURL, guitar.Brand(), guitar.TypeName())
 	if err != nil {
 		record.SetFailed(fingerprint, err.Error())
 		_ = s.repo.Save(ctx, record)

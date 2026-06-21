@@ -55,7 +55,8 @@ Discussed 2026-06-21 — not implemented.
 - **Owner opt-in** — BYOK key plus an explicit “analyze photos on upload” toggle; upload succeeds even if analysis fails.
 - **Search uses stored metadata for everyone** — once `GuitarAnalysis` (or equivalent) exists, viewer assistant and gallery filtering may use tags/summary; no extra vision cost at query time.
 - **Human fields stay authoritative** — brand, model, year, price, etc. are curator-entered; AI output is advisory (suggest/accept), never silent overwrite.
-- **Async worker** — analyze after save; re-run only when picture set changes (hash diff), not on every field edit.
+- **Async worker** — analyze after save; re-run only when the cover picture selection changes (`coverPictureIndex` or cover URL), not when other gallery photos change.
+- **Cover photo only** — vision analyzes `pictures[coverPictureIndex]` (one image per guitar).
 - **Trust** — label AI-detected metadata; show confidence where useful.
 
 Implementation belongs in API worker + optional curator UI; see [backlog.md](backlog.md).

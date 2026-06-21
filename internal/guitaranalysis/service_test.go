@@ -80,6 +80,41 @@ func TestAnalyzeIfEligible_StoresReadyResult(t *testing.T) {
 	}
 }
 
+func TestScheduleIfEligible_DoesNotCallVision(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	repo := persistence.NewMemoryRepository()
+	vision := &guitaranalysis.VisionAnalyzer{Client: server.Client()}
+	svc := guitaranalysis.NewService(
+		repo,
+		stubOwners{
+			enabled: true,
+			ok:      true,
+			creds: guitaranalysis.VisionCredentials{
+				APIKey:  "sk-test",
+				BaseURL: server.URL,
+			},
+		},
+		vision,
+	)
+	guitar := testGuitar(t)
+	rec, err := svc.ScheduleIfEligible(context.Background(), guitar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Status() != guitaranalysis.StatusPending {
+		t.Fatalf("status: %s", rec.Status())
+	}
+	if callCount != 0 {
+		t.Fatalf("vision calls: %d", callCount)
+	}
+}
+
 func TestReanalyze_ForcesRerunWhenReady(t *testing.T) {
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,11 +142,11 @@ func TestReanalyze_ForcesRerunWhenReady(t *testing.T) {
 
 	if _, err := svc.AnalyzeIfEligible(context.Background(), guitar); err == nil {
 		// opt-in disabled; seed a ready record manually
-		rec, err := guitaranalysis.NewRecord(guitar.ID(), guitar.Owner(), guitaranalysis.StatusReady, guitaranalysis.PicturesFingerprint(guitar.Pictures()))
+		rec, err := guitaranalysis.NewRecord(guitar.ID(), guitar.Owner(), guitaranalysis.StatusReady, guitaranalysis.CoverFingerprintForGuitar(guitar))
 		if err != nil {
 			t.Fatal(err)
 		}
-		rec.SetReady(guitaranalysis.PicturesFingerprint(guitar.Pictures()), "Old summary", []string{"old"}, 0.9)
+		rec.SetReady(guitaranalysis.CoverFingerprintForGuitar(guitar), "Old summary", []string{"old"}, 0.9)
 		if err := repo.Save(context.Background(), rec); err != nil {
 			t.Fatal(err)
 		}
@@ -123,6 +158,37 @@ func TestReanalyze_ForcesRerunWhenReady(t *testing.T) {
 	}
 	if updated.VisualSummary() != "Updated summary." {
 		t.Fatalf("summary: %q", updated.VisualSummary())
+	}
+	if callCount != 1 {
+		t.Fatalf("vision calls: %d", callCount)
+	}
+}
+
+func TestAnalyzeIfEligible_SkipsWhenCoverUnchanged(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]string{"content": `{"visualSummary":"Should not run.","tags":["x"],"confidence":0.8}`}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	repo := persistence.NewMemoryRepository()
+	svc := guitaranalysis.NewService(
+		repo,
+		stubOwners{enabled: true, ok: true, creds: guitaranalysis.VisionCredentials{APIKey: "sk-test", BaseURL: server.URL}},
+		&guitaranalysis.VisionAnalyzer{Client: server.Client()},
+	)
+	guitar := guitarWithPictures(t, []string{"https://example.com/a.jpg", "https://example.com/b.jpg"}, 0)
+	if _, err := svc.AnalyzeIfEligible(context.Background(), guitar); err != nil {
+		t.Fatal(err)
+	}
+	updated := guitarWithPictures(t, []string{"https://example.com/a.jpg", "https://example.com/other.jpg"}, 0)
+	if _, err := svc.AnalyzeIfEligible(context.Background(), updated); err != nil {
+		t.Fatal(err)
 	}
 	if callCount != 1 {
 		t.Fatalf("vision calls: %d", callCount)

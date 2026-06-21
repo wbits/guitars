@@ -329,7 +329,7 @@ func (h *Handler) triggerAnalysis(ctx context.Context, g *domain.Guitar) {
 	if h.analysis == nil || g == nil {
 		return
 	}
-	_, _ = h.analysis.AnalyzeIfEligible(ctx, g)
+	_, _ = h.analysis.ScheduleIfEligible(ctx, g)
 }
 
 func (h *Handler) toResponseWithAnalysis(ctx context.Context, g *domain.Guitar) guitarResponse {

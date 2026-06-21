@@ -73,7 +73,7 @@ Optional `analysis` object (AI-detected, advisory):
 | `failureReason` | string? | When `failed` |
 | `analyzedAt` | string? | RFC3339 when `ready` |
 
-Photo analysis runs after create/update when the owner has BYOK configured and `photoAnalysisEnabled: true`. Re-runs only when the picture URL set changes (fingerprint).
+Photo analysis runs after create/update when the owner has BYOK configured and `photoAnalysisEnabled: true`. Re-runs only when the cover picture selection changes (`coverPictureIndex` or the URL at that index). Vision analyzes the cover photo only.
 
 ### Legacy records
 
