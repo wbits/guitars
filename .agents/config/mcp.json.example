@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "guitars": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/dist/index.js"],
+      "env": {
+        "GUITARS_API_BASE_URL": "https://your-api.example.com",
+        "GUITARS_BEARER_TOKEN": "your-token-here"
+      }
+    }
+  }
+}

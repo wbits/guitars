@@ -104,6 +104,16 @@ api: build
 crawl:
 	GOTOOLCHAIN=local go run ./cmd/crawler $(ARGS)
 
+## mcp-build: build the local MCP stdio server (Node 20+)
+.PHONY: mcp-build
+mcp-build:
+	npm run build --prefix mcp
+
+## mcp-test: run MCP server unit tests
+.PHONY: mcp-test
+mcp-test:
+	npm test --prefix mcp
+
 ## package: produce a CloudFormation package (requires S3_BUCKET)
 .PHONY: package
 package: test build

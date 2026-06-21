@@ -1,0 +1,72 @@
+# Architecture
+
+## System overview
+
+```mermaid
+flowchart LR
+  Browser[Browser]
+  Webapp[guitars-webapp S3+CloudFront]
+  Agent[AI agent / Cursor]
+  McpLocal[mcp/ stdio]
+  ApiGw[API Gateway]
+  Lambda[Go Lambda this repo]
+  DynamoDB[(DynamoDB)]
+  Cognito[Cognito]
+  Crawler[GitHub Actions crawler]
+
+  Browser --> Webapp
+  Browser -->|REST JWT| ApiGw
+  Agent --> McpLocal
+  McpLocal -->|REST JWT| ApiGw
+  ApiGw --> Lambda --> DynamoDB
+  Cognito --> Browser
+  Crawler -->|REST| ApiGw
+```
+
+| Component | Repo | Hosting |
+|-----------|------|---------|
+| **GuitarCollection API** | `wbits/guitars` (this repo) | API Gateway + Lambda |
+| **Market crawler** | this repo | GitHub Actions (weekly) |
+| **MCP server (Phase 1)** | this repo `mcp/` | Local stdio process |
+| **Webapp** | `wbits/guitars-webapp` | S3 + CloudFront |
+
+## API layout (DDD)
+
+```
+cmd/lambda/                       # Lambda entry
+internal/guitarcollection/
+    domain/                       # Guitar aggregate, invariants
+    application/                  # use cases
+    infrastructure/               # DynamoDB, Cognito auth, S3 presign
+    interfaces/http/              # API Gateway adapter
+cmd/crawler/                      # market crawl CLI
+internal/marketcrawler/           # Reverb, eBay, Marktplaats sources
+internal/userprofile/             # profiles, marketCrawlEnabled
+mcp/                              # MCP stdio adapter (Node)
+template.yaml                     # SAM stack
+```
+
+Domain invariants live in Go (`internal/guitarcollection/domain/guitar.go`). MCP uses a zod mirror at `mcp/src/contracts/guitar.ts` — keep aligned when payloads change.
+
+## Authentication
+
+Production: **Amazon Cognito** JWT bearer tokens. The API maps token `sub` to collection ownership. Admins are in Cognito group `guitars-admins` (`isAdmin` on `GET /me`).
+
+Local: bearer token via Secrets Manager (LocalStack) or legacy shared token for dev.
+
+## MCP
+
+See [plans/mcp-server.md](plans/mcp-server.md).
+
+| Phase | Where | Transport |
+|-------|-------|-----------|
+| **1 (done)** | `mcp/` in this repo | stdio → REST API |
+| **2 (planned)** | New Lambda + `/mcp` route | Streamable HTTP on API Gateway |
+
+## Related documentation
+
+| Topic | File |
+|-------|------|
+| HTTP API | [api-contract.md](api-contract.md) |
+| Operations | [runbook.md](runbook.md) |
+| Webapp (React) | [guitars-webapp AGENTS.md](https://github.com/wbits/guitars-webapp/blob/master/AGENTS.md) |
