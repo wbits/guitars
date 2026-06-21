@@ -87,6 +87,7 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 | PATCH | `/me` | Update username and/or photo analysis opt-in |
 | PUT | `/me/assistant-byok` | Store encrypted owner LLM API key (tier 2) |
 | DELETE | `/me/assistant-byok` | Remove owner LLM API key |
+| POST | `/me/reanalyze-collection` | Re-run photo analysis for all owned guitars with pictures (BYOK required) |
 
 ### GET `/me` — assistant fields
 
@@ -107,6 +108,26 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 ```
 
 `photoAnalysisEnabled` requires a configured assistant API key (400 otherwise). Clearing BYOK disables photo analysis.
+
+### POST `/me/reanalyze-collection`
+
+Re-runs vision analysis for every guitar owned by the caller that has pictures. Requires a stored assistant API key. Does not require `photoAnalysisEnabled` (explicit manual action). May take several seconds for large collections.
+
+Response:
+
+```json
+{
+  "total": 5,
+  "analyzed": 4,
+  "skipped": 1,
+  "failed": 0
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 400 | No assistant API key configured |
+| 502 | One or more vision calls failed (partial progress is persisted) |
 
 ### PUT `/me/assistant-byok` body
 

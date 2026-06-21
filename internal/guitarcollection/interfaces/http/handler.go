@@ -81,6 +81,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return h.putAssistantBYOK(ctx, principal, req.Body)
 	case path == "/me/assistant-byok" && method == "DELETE":
 		return h.deleteAssistantBYOK(ctx, principal)
+	case path == "/me/reanalyze-collection" && method == "POST":
+		return h.reanalyzeCollection(ctx, principal)
 	case path == "/collections" && method == "GET":
 		return h.listCollections(ctx)
 	case path == "/guitar" && method == "GET":
@@ -302,10 +304,25 @@ func (h *Handler) analyzeGuitar(ctx context.Context, ownerID, id string) (events
 	if h.analysis == nil {
 		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
 	}
-	if _, err := h.analysis.AnalyzeIfEligible(ctx, g); err != nil {
-		return jsonResponse(502, errorResponse{Error: "photo analysis failed"})
+	if _, err := h.analysis.Reanalyze(ctx, g); err != nil {
+		return analysisErrorToResponse(err)
 	}
 	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
+}
+
+func (h *Handler) reanalyzeCollection(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
+	if h.analysis == nil {
+		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
+	}
+	guitars, err := h.svc.ListGuitars(ctx, principal.UserID)
+	if err != nil {
+		return errorToResponse(err)
+	}
+	result, err := h.analysis.ReanalyzeCollection(ctx, principal.UserID, guitars)
+	if err != nil {
+		return analysisErrorToResponse(err)
+	}
+	return jsonResponse(200, result)
 }
 
 func (h *Handler) triggerAnalysis(ctx context.Context, g *domain.Guitar) {
@@ -426,6 +443,17 @@ func profileErrorToResponse(err error) (events.APIGatewayProxyResponse, error) {
 		return jsonResponse(503, errorResponse{Error: "assistant BYOK is not configured on the server"})
 	default:
 		return jsonResponse(500, errorResponse{Error: "internal server error"})
+	}
+}
+
+func analysisErrorToResponse(err error) (events.APIGatewayProxyResponse, error) {
+	switch {
+	case errors.Is(err, guitaranalysis.ErrBYOKNotConfigured):
+		return jsonResponse(400, errorResponse{Error: "configure an assistant API key before re-analyzing"})
+	case guitaranalysis.IsValidationError(err):
+		return jsonResponse(400, errorResponse{Error: err.Error()})
+	default:
+		return jsonResponse(502, errorResponse{Error: "photo analysis failed"})
 	}
 }
 

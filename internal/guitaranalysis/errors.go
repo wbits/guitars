@@ -20,3 +20,6 @@ func IsValidationError(err error) bool {
 	var ve *ValidationError
 	return errors.As(err, &ve)
 }
+
+// ErrBYOKNotConfigured indicates the owner has no assistant API key stored.
+var ErrBYOKNotConfigured = errors.New("assistant BYOK is not configured")

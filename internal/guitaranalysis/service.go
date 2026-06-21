@@ -39,8 +39,65 @@ func (s *Service) MapForGuitars(ctx context.Context, guitarIDs []string) (map[st
 	return s.repo.FindByGuitarIDs(ctx, guitarIDs)
 }
 
+// ReanalyzeCollectionResult summarizes a bulk re-analysis run.
+type ReanalyzeCollectionResult struct {
+	Total    int `json:"total"`
+	Analyzed int `json:"analyzed"`
+	Skipped  int `json:"skipped"`
+	Failed   int `json:"failed"`
+}
+
+type analyzeOpts struct {
+	requireOptIn bool
+	force        bool
+}
+
 // AnalyzeIfEligible runs vision analysis when the owner opted in with BYOK and pictures changed.
 func (s *Service) AnalyzeIfEligible(ctx context.Context, guitar *domain.Guitar) (*Record, error) {
+	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: true, force: false})
+}
+
+// Reanalyze runs vision analysis for an owner guitar using BYOK, even when pictures are unchanged.
+func (s *Service) Reanalyze(ctx context.Context, guitar *domain.Guitar) (*Record, error) {
+	return s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true})
+}
+
+// ReanalyzeCollection re-runs photo analysis for every guitar owned by the caller with pictures.
+func (s *Service) ReanalyzeCollection(ctx context.Context, ownerID string, guitars []*domain.Guitar) (ReanalyzeCollectionResult, error) {
+	result := ReanalyzeCollectionResult{Total: len(guitars)}
+	if s == nil || s.repo == nil {
+		return result, nil
+	}
+	ownerID = strings.TrimSpace(ownerID)
+	if ownerID == "" {
+		return result, fmt.Errorf("owner id is required")
+	}
+	creds, ok, err := s.owners.VisionCredentials(ctx, ownerID)
+	if err != nil {
+		return result, err
+	}
+	if !ok || strings.TrimSpace(creds.APIKey) == "" {
+		return result, ErrBYOKNotConfigured
+	}
+	for _, guitar := range guitars {
+		if guitar == nil || guitar.Owner() != ownerID {
+			result.Skipped++
+			continue
+		}
+		if len(guitar.Pictures()) == 0 {
+			result.Skipped++
+			continue
+		}
+		if _, err := s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true}); err != nil {
+			result.Failed++
+			continue
+		}
+		result.Analyzed++
+	}
+	return result, nil
+}
+
+func (s *Service) analyze(ctx context.Context, guitar *domain.Guitar, opts analyzeOpts) (*Record, error) {
 	if s == nil || s.repo == nil || guitar == nil {
 		return nil, nil
 	}
@@ -48,18 +105,23 @@ func (s *Service) AnalyzeIfEligible(ctx context.Context, guitar *domain.Guitar) 
 	if ownerID == "" {
 		return nil, nil
 	}
-	enabled, err := s.owners.PhotoAnalysisEnabled(ctx, ownerID)
-	if err != nil {
-		return nil, err
-	}
-	if !enabled {
-		return nil, nil
+	if opts.requireOptIn {
+		enabled, err := s.owners.PhotoAnalysisEnabled(ctx, ownerID)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
+			return nil, nil
+		}
 	}
 	creds, ok, err := s.owners.VisionCredentials(ctx, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	if !ok || strings.TrimSpace(creds.APIKey) == "" {
+		if opts.force {
+			return nil, ErrBYOKNotConfigured
+		}
 		return nil, nil
 	}
 	pictures := guitar.Pictures()
@@ -71,7 +133,7 @@ func (s *Service) AnalyzeIfEligible(ctx context.Context, guitar *domain.Guitar) 
 	if err != nil {
 		return nil, err
 	}
-	if existing != nil && existing.PicturesFingerprint() == fingerprint && existing.Status() == StatusReady {
+	if !opts.force && existing != nil && existing.PicturesFingerprint() == fingerprint && existing.Status() == StatusReady {
 		return existing, nil
 	}
 	record, err := s.pendingRecord(guitar.ID(), ownerID, fingerprint, existing)
