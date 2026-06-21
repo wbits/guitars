@@ -8,7 +8,8 @@ Plan: [plans/guitars-assistant.md](plans/guitars-assistant.md). Instructions: [a
 - [x] Webapp viewer chat on collection pages (`guitars-webapp`)
 - [x] Client-side `filterGuitars` (no list API query params)
 - [ ] Optional: set `ASSISTANT_LLM_API_KEY` in production for natural-language beyond rules
-- [ ] Tier 2: owner BYOK in webapp settings
+- [x] Tier 2: owner BYOK in webapp profile settings + encrypted storage on API
+- [ ] Production: set `ASSISTANT_BYOK_ENCRYPTION_KEY` (32-byte base64) to enable BYOK in AWS
 - [ ] Photo analysis on upload (tier-2 BYOK only) — async vision job → `GuitarAnalysis` metadata
 - [ ] Assistant search over analysis metadata (tags + summary; cheap at query time)
 - [ ] Curator webapp chat + hosted MCP (Phase 2)

@@ -17,13 +17,14 @@ Go Lambda HTTP API (GuitarCollection) for guitars.com — guitar CRUD, user prof
 ## Recent focus
 
 - **guitars-assistant tier 1:** shipped — `POST /assistant/chat`, rate limits, webapp viewer chat (closed by default, voice input), client-side gallery filters
-- **Photo analysis + tier 2 BYOK:** direction decided; not implemented — see [decisions.md](decisions.md)
+- **guitars-assistant tier 2 BYOK:** encrypted owner API key on profile, assistant uses owner key on own collection
+- **Photo analysis + tier 2 BYOK:** direction decided; photo analysis not implemented — see [decisions.md](decisions.md)
 - **`/record-decision` skill** — [`.cursor/skills/record-decision/`](../.cursor/skills/record-decision/) for persisting design choices to `.agents/`
 - MCP Phase 1 in `mcp/`; agent docs in `.agents/`
 
 ## Not started yet
 
-- guitars-assistant tier 2 (owner BYOK)
+- guitars-assistant tier 2 BYOK (profile settings + assistant routing)
 - Photo analysis on upload (tier-2 BYOK; decision in [decisions.md](decisions.md))
 - Curator webapp chat; Phase 2 hosted MCP — see [plans/guitars-assistant.md](plans/guitars-assistant.md)
 

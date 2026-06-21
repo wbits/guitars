@@ -27,22 +27,33 @@ type GuitarLister interface {
 	ListUserGuitars(ctx context.Context, userID string) ([]*domain.Guitar, error)
 }
 
-// Service runs hosted viewer chat (tier 1 — operator LLM key, rate limited).
+// Service runs viewer chat with tier-1 hosted LLM or tier-2 owner BYOK on own collection.
 type Service struct {
-	guitars GuitarLister
-	llm     LLM
-	limiter RateLimiter
+	guitars      GuitarLister
+	hostedLLM    LLM
+	tier1Limiter RateLimiter
+	byok         BYOKProvider
+	byokLimiter  RateLimiter
 }
 
-// NewService constructs a viewer assistant service.
-func NewService(guitars GuitarLister, llm LLM, limiter RateLimiter) *Service {
-	if llm == nil {
-		llm = RuleLLM{}
+// NewService constructs an assistant service.
+func NewService(guitars GuitarLister, hostedLLM LLM, tier1Limiter RateLimiter, byok BYOKProvider, byokLimiter RateLimiter) *Service {
+	if hostedLLM == nil {
+		hostedLLM = RuleLLM{}
 	}
-	if limiter == nil {
-		limiter = NewMemoryRateLimiter(10)
+	if tier1Limiter == nil {
+		tier1Limiter = NewMemoryRateLimiter(10)
 	}
-	return &Service{guitars: guitars, llm: llm, limiter: limiter}
+	if byokLimiter == nil {
+		byokLimiter = NewMemoryRateLimiter(200)
+	}
+	return &Service{
+		guitars:      guitars,
+		hostedLLM:    hostedLLM,
+		tier1Limiter: tier1Limiter,
+		byok:         byok,
+		byokLimiter:  byokLimiter,
+	}
 }
 
 // Chat applies rate limits, parses the message, and returns matching guitar ids.
@@ -59,7 +70,8 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 	if callerUserID == "" {
 		return ChatResponse{}, fmt.Errorf("caller identity is required")
 	}
-	if err := s.limiter.Allow(ctx, callerUserID); err != nil {
+	llm, limiter := s.resolveTier(ctx, collectionUserID, callerUserID)
+	if err := limiter.Allow(ctx, callerUserID); err != nil {
 		return ChatResponse{}, err
 	}
 
@@ -68,7 +80,7 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 		return ChatResponse{}, err
 	}
 
-	filter, reply, err := s.llm.ParseFilter(ctx, message, guitars)
+	filter, reply, err := llm.ParseFilter(ctx, message, guitars)
 	if err != nil {
 		return ChatResponse{}, err
 	}
@@ -91,4 +103,20 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 		MatchingIDs: guitarIDs(matched),
 		Filter:      filterOut,
 	}, nil
+}
+
+func (s *Service) resolveTier(ctx context.Context, collectionUserID, callerUserID string) (LLM, RateLimiter) {
+	if s.byok != nil &&
+		strings.TrimSpace(collectionUserID) != "" &&
+		collectionUserID == strings.TrimSpace(callerUserID) {
+		creds, ok, err := s.byok.Credentials(ctx, collectionUserID)
+		if err == nil && ok && strings.TrimSpace(creds.APIKey) != "" {
+			return &OpenAICompatibleLLM{
+				APIKey:  creds.APIKey,
+				BaseURL: creds.BaseURL,
+				Model:   creds.Model,
+			}, s.byokLimiter
+		}
+	}
+	return s.hostedLLM, s.tier1Limiter
 }

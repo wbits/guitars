@@ -9,18 +9,24 @@ var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
 
 // Profile holds display identity for an authenticated user.
 type Profile struct {
-	userID             string
-	username           string
-	email              string
-	marketCrawlEnabled bool
+	userID                  string
+	username                string
+	email                   string
+	marketCrawlEnabled      bool
+	assistantEncryptedAPIKey string
+	assistantLLMBaseURL      string
+	assistantLLMModel        string
 }
 
 // ProfileProps are the mutable fields of a Profile.
 type ProfileProps struct {
-	UserID             string
-	Username           string
-	Email              string
-	MarketCrawlEnabled bool
+	UserID                  string
+	Username                string
+	Email                   string
+	MarketCrawlEnabled      bool
+	AssistantEncryptedAPIKey string
+	AssistantLLMBaseURL      string
+	AssistantLLMModel        string
 }
 
 // NewProfile validates and constructs a Profile.
@@ -36,10 +42,13 @@ func NewProfile(props ProfileProps) (*Profile, error) {
 		}
 	}
 	return &Profile{
-		userID:             userID,
-		username:           username,
-		email:              strings.TrimSpace(props.Email),
-		marketCrawlEnabled: props.MarketCrawlEnabled,
+		userID:                  userID,
+		username:                username,
+		email:                   strings.TrimSpace(props.Email),
+		marketCrawlEnabled:      props.MarketCrawlEnabled,
+		assistantEncryptedAPIKey: strings.TrimSpace(props.AssistantEncryptedAPIKey),
+		assistantLLMBaseURL:      strings.TrimSpace(props.AssistantLLMBaseURL),
+		assistantLLMModel:        strings.TrimSpace(props.AssistantLLMModel),
 	}, nil
 }
 
@@ -95,4 +104,32 @@ func (p *Profile) SetUsername(username string) error {
 // SetEmail stores the email address when known from authentication.
 func (p *Profile) SetEmail(email string) {
 	p.email = strings.TrimSpace(email)
+}
+
+// AssistantBYOKConfigured reports whether an encrypted assistant API key is stored.
+func (p *Profile) AssistantBYOKConfigured() bool {
+	return strings.TrimSpace(p.assistantEncryptedAPIKey) != ""
+}
+
+func (p *Profile) AssistantEncryptedAPIKey() string { return p.assistantEncryptedAPIKey }
+func (p *Profile) AssistantLLMBaseURL() string    { return p.assistantLLMBaseURL }
+func (p *Profile) AssistantLLMModel() string      { return p.assistantLLMModel }
+
+// SetAssistantBYOK stores encrypted assistant credentials (never plaintext).
+func (p *Profile) SetAssistantBYOK(encryptedAPIKey, baseURL, model string) error {
+	encryptedAPIKey = strings.TrimSpace(encryptedAPIKey)
+	if encryptedAPIKey == "" {
+		return InvalidField("apiKey", "is required")
+	}
+	p.assistantEncryptedAPIKey = encryptedAPIKey
+	p.assistantLLMBaseURL = strings.TrimSpace(baseURL)
+	p.assistantLLMModel = strings.TrimSpace(model)
+	return nil
+}
+
+// ClearAssistantBYOK removes stored assistant credentials.
+func (p *Profile) ClearAssistantBYOK() {
+	p.assistantEncryptedAPIKey = ""
+	p.assistantLLMBaseURL = ""
+	p.assistantLLMModel = ""
 }

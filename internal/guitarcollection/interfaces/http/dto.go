@@ -84,16 +84,25 @@ type errorResponse struct {
 
 // meResponse is returned by GET /me.
 type meResponse struct {
-	UserID      string `json:"userId"`
-	Username    string `json:"username,omitempty"`
-	Email       string `json:"email,omitempty"`
-	DisplayName string `json:"displayName"`
-	IsAdmin     bool   `json:"isAdmin"`
+	UserID                   string `json:"userId"`
+	Username                 string `json:"username,omitempty"`
+	Email                    string `json:"email,omitempty"`
+	DisplayName              string `json:"displayName"`
+	IsAdmin                  bool   `json:"isAdmin"`
+	AssistantByokConfigured  bool   `json:"assistantByokConfigured"`
+	AssistantLlmBaseURL      string `json:"assistantLlmBaseUrl,omitempty"`
+	AssistantLlmModel        string `json:"assistantLlmModel,omitempty"`
 }
 
 // profilePatchRequest is the JSON payload for PATCH /me.
 type profilePatchRequest struct {
 	Username string `json:"username"`
+}
+
+type assistantBYOKPutRequest struct {
+	APIKey  string `json:"apiKey"`
+	BaseURL string `json:"baseUrl,omitempty"`
+	Model   string `json:"model,omitempty"`
 }
 
 // collectionOwnerResponse describes a user that owns at least one guitar.
@@ -118,11 +127,14 @@ type clearCollectionMarketLogsResponse struct {
 
 func toMeResponse(profile *profiledomain.Profile, isAdmin bool) meResponse {
 	return meResponse{
-		UserID:      profile.UserID(),
-		Username:    profile.Username(),
-		Email:       profile.Email(),
-		DisplayName: profile.DisplayName(),
-		IsAdmin:     isAdmin,
+		UserID:                  profile.UserID(),
+		Username:                profile.Username(),
+		Email:                   profile.Email(),
+		DisplayName:             profile.DisplayName(),
+		IsAdmin:                 isAdmin,
+		AssistantByokConfigured: profile.AssistantBYOKConfigured(),
+		AssistantLlmBaseURL:     profile.AssistantLLMBaseURL(),
+		AssistantLlmModel:       profile.AssistantLLMModel(),
 	}
 }
 

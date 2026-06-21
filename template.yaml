@@ -28,6 +28,15 @@ Parameters:
     Type: Number
     Default: 10
     Description: Max viewer assistant messages per authenticated user per day (tier 1).
+  AssistantBYOKDailyLimit:
+    Type: Number
+    Default: 200
+    Description: Max assistant messages per day when using owner BYOK on own collection (tier 2).
+  AssistantBYOKEncryptionKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Base64-encoded 32-byte AES key for encrypting owner BYOK API keys at rest. Leave empty to disable BYOK storage.
   ApiDomainName:
     Type: String
     Default: guitars.brouwers.club
@@ -62,6 +71,8 @@ Globals:
         USER_PROFILES_TABLE: !Ref UserProfilesTableName
         ASSISTANT_USAGE_TABLE: !Ref AssistantUsageTableName
         ASSISTANT_DAILY_LIMIT: !Ref AssistantDailyLimit
+        ASSISTANT_BYOK_DAILY_LIMIT: !Ref AssistantBYOKDailyLimit
+        ASSISTANT_BYOK_ENCRYPTION_KEY: !Ref AssistantBYOKEncryptionKey
         AWS_ENDPOINT_URL: ""
         COGNITO_USER_POOL_ID: !Ref GuitarsUserPool
         COGNITO_CLIENT_ID: !Ref GuitarsUserPoolClient
@@ -292,6 +303,21 @@ Resources:
           Type: Api
           Properties:
             Path: /me
+            Method: options
+        PutAssistantBYOK:
+          Type: Api
+          Properties:
+            Path: /me/assistant-byok
+            Method: put
+        DeleteAssistantBYOK:
+          Type: Api
+          Properties:
+            Path: /me/assistant-byok
+            Method: delete
+        OptionsAssistantBYOK:
+          Type: Api
+          Properties:
+            Path: /me/assistant-byok
             Method: options
         ListCollections:
           Type: Api

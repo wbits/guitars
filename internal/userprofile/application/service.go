@@ -10,12 +10,13 @@ import (
 
 // Service coordinates user profile use cases.
 type Service struct {
-	repo domain.Repository
+	repo          domain.Repository
+	byokEncryptor BYOKEncryptor
 }
 
-// NewService wires the profile application service.
-func NewService(repo domain.Repository) *Service {
-	return &Service{repo: repo}
+// NewService wires the profile application service. byokEncryptor may be nil to disable BYOK storage.
+func NewService(repo domain.Repository, byokEncryptor BYOKEncryptor) *Service {
+	return &Service{repo: repo, byokEncryptor: byokEncryptor}
 }
 
 // GetProfile returns the caller's profile, creating a stub record when needed.
@@ -133,4 +134,9 @@ func IsValidationError(err error) bool {
 // IsUsernameTaken reports whether err is ErrUsernameTaken.
 func IsUsernameTaken(err error) bool {
 	return errors.Is(err, domain.ErrUsernameTaken)
+}
+
+// IsBYOKNotConfigured reports whether BYOK storage is unavailable on the server.
+func IsBYOKNotConfigured(err error) bool {
+	return errors.Is(err, ErrBYOKNotConfigured)
 }

@@ -65,10 +65,13 @@ func (r *MemoryRepository) Save(_ context.Context, profile *domain.Profile) erro
 
 func cloneProfile(profile *domain.Profile) *domain.Profile {
 	cloned, err := domain.NewProfile(domain.ProfileProps{
-		UserID:             profile.UserID(),
-		Username:           profile.Username(),
-		Email:              profile.Email(),
-		MarketCrawlEnabled: profile.MarketCrawlEnabled(),
+		UserID:                   profile.UserID(),
+		Username:                 profile.Username(),
+		Email:                    profile.Email(),
+		MarketCrawlEnabled:       profile.MarketCrawlEnabled(),
+		AssistantEncryptedAPIKey: profile.AssistantEncryptedAPIKey(),
+		AssistantLLMBaseURL:      profile.AssistantLLMBaseURL(),
+		AssistantLLMModel:        profile.AssistantLLMModel(),
 	})
 	if err != nil {
 		panic(err)

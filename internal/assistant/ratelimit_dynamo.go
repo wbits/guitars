@@ -20,9 +20,10 @@ type dynamoAPI interface {
 
 // DynamoRateLimiter enforces a per-user daily quota using a DynamoDB counter with TTL.
 type DynamoRateLimiter struct {
-	Client dynamoAPI
-	Table  string
-	Limit  int
+	Client    dynamoAPI
+	Table     string
+	Limit     int
+	KeyPrefix string
 }
 
 type usageItem struct {
@@ -41,7 +42,7 @@ func (d *DynamoRateLimiter) Allow(ctx context.Context, userID string) error {
 		limit = 10
 	}
 	now := time.Now().UTC()
-	pk := fmt.Sprintf("user#%s#%s", userID, utcDay(now))
+	pk := fmt.Sprintf("%suser#%s#%s", d.KeyPrefix, userID, utcDay(now))
 	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.UTC)
 
 	out, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{

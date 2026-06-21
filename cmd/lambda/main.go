@@ -28,6 +28,7 @@ import (
 	httpapi "github.com/wbits/guitars/internal/guitarcollection/interfaces/http"
 	profileapp "github.com/wbits/guitars/internal/userprofile/application"
 	profilepersistence "github.com/wbits/guitars/internal/userprofile/infrastructure/persistence"
+	profilecrypto "github.com/wbits/guitars/internal/userprofile/infrastructure/crypto"
 )
 
 // uuidGen implements application.IDGenerator using UUIDv4.
@@ -94,13 +95,22 @@ func main() {
 	marketLogRepo := persistence.NewMarketLogDynamoRepository(ddb, marketLogsTable)
 	profileRepo := profilepersistence.NewDynamoRepository(ddb, profilesTable, "usernameIndex")
 
+	var byokEncryptor profileapp.BYOKEncryptor
+	if keyB64 := os.Getenv("ASSISTANT_BYOK_ENCRYPTION_KEY"); keyB64 != "" {
+		store, err := profilecrypto.NewKeyStoreFromBase64(keyB64)
+		if err != nil {
+			log.Fatalf("assistant BYOK encryption key: %v", err)
+		}
+		byokEncryptor = store
+	}
+
 	authn, err := auth.BuildAuthenticator(ctx, awsCfg, smOpts)
 	if err != nil {
 		log.Fatalf("build authenticator: %v", err)
 	}
 
 	svc := application.NewService(repo, uuidGen{})
-	profiles := profileapp.NewService(profileRepo)
+	profiles := profileapp.NewService(profileRepo, byokEncryptor)
 	marketLogs := application.NewMarketLogService(
 		repo,
 		marketLogRepo,
@@ -110,18 +120,31 @@ func main() {
 		profiles,
 	)
 	dailyLimit := assistant.ParseDailyLimit(os.Getenv("ASSISTANT_DAILY_LIMIT"), 10)
+	byokDailyLimit := assistant.ParseDailyLimit(os.Getenv("ASSISTANT_BYOK_DAILY_LIMIT"), 200)
 	var limiter assistant.RateLimiter
 	if usageTable := os.Getenv("ASSISTANT_USAGE_TABLE"); usageTable != "" {
 		limiter = &assistant.DynamoRateLimiter{Client: ddb, Table: usageTable, Limit: dailyLimit}
 	} else {
 		limiter = assistant.NewMemoryRateLimiter(dailyLimit)
 	}
+	var byokLimiter assistant.RateLimiter
+	if usageTable := os.Getenv("ASSISTANT_USAGE_TABLE"); usageTable != "" {
+		byokLimiter = &assistant.DynamoRateLimiter{Client: ddb, Table: usageTable, Limit: byokDailyLimit, KeyPrefix: "byok:"}
+	} else {
+		byokLimiter = assistant.NewMemoryRateLimiter(byokDailyLimit)
+	}
 	llm := &assistant.OpenAICompatibleLLM{
 		APIKey:  os.Getenv("ASSISTANT_LLM_API_KEY"),
 		BaseURL: os.Getenv("ASSISTANT_LLM_BASE_URL"),
 		Model:   os.Getenv("ASSISTANT_LLM_MODEL"),
 	}
-	assistantSvc := assistant.NewService(svc, llm, limiter)
+	assistantSvc := assistant.NewService(
+		svc,
+		llm,
+		limiter,
+		&assistant.ProfileBYOKProvider{Profiles: profiles},
+		byokLimiter,
+	)
 
 	handler := httpapi.NewHandler(svc, marketLogs, profiles, authn, presigner, envOrDefault("ADMIN_GROUP", "guitars-admins"), assistantSvc)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/wbits/guitars/internal/guitarcollection/infrastructure/persistence"
 	profileapp "github.com/wbits/guitars/internal/userprofile/application"
 	profilepersistence "github.com/wbits/guitars/internal/userprofile/infrastructure/persistence"
+	profilecrypto "github.com/wbits/guitars/internal/userprofile/infrastructure/crypto"
 )
 
 const validBearer = "Bearer test-secret"
@@ -29,18 +30,33 @@ func (s *sequentialIDs) NewID() string {
 	return id
 }
 
+func testBYOKEncryptor() *profilecrypto.KeyStore {
+	store, err := profilecrypto.NewKeyStoreFromBase64("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
+	if err != nil {
+		panic(err)
+	}
+	return store
+}
+
 func newTestHandler() *Handler {
 	repo := persistence.NewMemoryRepository()
 	marketRepo := persistence.NewMemoryMarketLogRepository()
 	profileRepo := profilepersistence.NewMemoryRepository()
 	ids := &sequentialIDs{ids: []string{"g-1", "g-2", "g-3", "ml-1", "ml-2", "ml-3"}}
 	svc := application.NewService(repo, ids)
-	profiles := profileapp.NewService(profileRepo)
+	profiles := profileapp.NewService(profileRepo, testBYOKEncryptor())
 	marketLogs := application.NewMarketLogService(repo, marketRepo, ids, nil, nil, profiles)
 	authn := auth.NewBearerAuthenticator(auth.TokenLoaderFunc(func(context.Context) (string, error) {
 		return "test-secret", nil
 	}), 0)
-	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistant.NewService(svc, assistant.RuleLLM{}, assistant.NewMemoryRateLimiter(100)))
+	assistantSvc := assistant.NewService(
+		svc,
+		assistant.RuleLLM{},
+		assistant.NewMemoryRateLimiter(100),
+		&assistant.ProfileBYOKProvider{Profiles: profiles},
+		assistant.NewMemoryRateLimiter(200),
+	)
+	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistantSvc)
 }
 
 func reqWithAuth(method, path, body string) events.APIGatewayProxyRequest {
@@ -491,5 +507,33 @@ func TestHandler_AssistantChat_FiltersCollection(t *testing.T) {
 	}
 	if len(out.MatchingIDs) != 1 {
 		t.Fatalf("matching ids: %+v message: %q filter: %+v body: %s", out.MatchingIDs, out.Message, out.Filter, resp.Body)
+	}
+}
+
+func TestHandler_AssistantBYOK_PutAndDelete(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+
+	putResp, _ := h.Handle(ctx, reqWithAuth("PUT", "/me/assistant-byok", `{"apiKey":"sk-owner","model":"gpt-test"}`))
+	if putResp.StatusCode != 200 {
+		t.Fatalf("put BYOK: want 200, got %d (%s)", putResp.StatusCode, putResp.Body)
+	}
+	var me meResponse
+	if err := json.Unmarshal([]byte(putResp.Body), &me); err != nil {
+		t.Fatal(err)
+	}
+	if !me.AssistantByokConfigured || me.AssistantLlmModel != "gpt-test" {
+		t.Fatalf("unexpected me: %+v", me)
+	}
+
+	delResp, _ := h.Handle(ctx, reqWithAuth("DELETE", "/me/assistant-byok", ""))
+	if delResp.StatusCode != 200 {
+		t.Fatalf("delete BYOK: want 200, got %d (%s)", delResp.StatusCode, delResp.Body)
+	}
+	if err := json.Unmarshal([]byte(delResp.Body), &me); err != nil {
+		t.Fatal(err)
+	}
+	if me.AssistantByokConfigured {
+		t.Fatalf("expected cleared: %+v", me)
 	}
 }

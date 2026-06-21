@@ -69,8 +69,30 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/me` | Profile + `isAdmin` |
+| GET | `/me` | Profile + `isAdmin` + assistant BYOK status |
 | PATCH | `/me` | Update username |
+| PUT | `/me/assistant-byok` | Store encrypted owner LLM API key (tier 2) |
+| DELETE | `/me/assistant-byok` | Remove owner LLM API key |
+
+### GET `/me` — assistant fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `assistantByokConfigured` | boolean | True when an encrypted key is stored |
+| `assistantLlmBaseUrl` | string? | Optional OpenAI-compatible base URL |
+| `assistantLlmModel` | string? | Optional model name |
+
+### PUT `/me/assistant-byok` body
+
+```json
+{
+  "apiKey": "sk-…",
+  "baseUrl": "https://api.openai.com/v1",
+  "model": "gpt-4o-mini"
+}
+```
+
+Returns the same shape as GET `/me`. Requires `ASSISTANT_BYOK_ENCRYPTION_KEY` on the server (503 if unset).
 
 ## Collections
 
@@ -90,13 +112,15 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 
 Populated by `cmd/crawler` (weekly GitHub Actions). Crawler writes only when owner has `marketCrawlEnabled: true`.
 
-## Assistant (viewer, tier 1)
-
-Hosted collection assistant for browsing users. Operator-owned LLM key; strict per-user daily rate limit. Tier 2 (owner BYOK) is planned, not implemented.
+## Assistant (viewer)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/assistant/chat` | Viewer chat: natural language → filter + matching guitar ids |
+| POST | `/assistant/chat` | Natural language → filter + matching guitar ids |
+
+**Tier 1 (hosted):** operator LLM key (`ASSISTANT_LLM_API_KEY`); strict daily cap per caller (`ASSISTANT_DAILY_LIMIT`, default 10/day).
+
+**Tier 2 (owner BYOK):** when the caller browses **their own** collection and has stored a key via `/me/assistant-byok`, the server uses the owner's decrypted key and `ASSISTANT_BYOK_DAILY_LIMIT` (default 200/day). Visitors on that collection still use tier 1.
 
 ### POST `/assistant/chat` body
 

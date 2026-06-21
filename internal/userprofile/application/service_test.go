@@ -11,7 +11,7 @@ import (
 
 func TestService_GetProfile_CreatesWithEmail(t *testing.T) {
 	repo := persistence.NewMemoryRepository()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 
 	profile, err := svc.GetProfile(context.Background(), "user-1", "user@example.com")
 	if err != nil {
@@ -24,7 +24,7 @@ func TestService_GetProfile_CreatesWithEmail(t *testing.T) {
 
 func TestService_UpdateUsername_Persists(t *testing.T) {
 	repo := persistence.NewMemoryRepository()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := context.Background()
 
 	if _, err := svc.GetProfile(ctx, "user-1", "user@example.com"); err != nil {
@@ -41,7 +41,7 @@ func TestService_UpdateUsername_Persists(t *testing.T) {
 
 func TestService_UpdateUsername_RejectsDuplicate(t *testing.T) {
 	repo := persistence.NewMemoryRepository()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := context.Background()
 
 	if _, err := svc.GetProfile(ctx, "user-1", "one@example.com"); err != nil {

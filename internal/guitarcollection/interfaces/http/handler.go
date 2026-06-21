@@ -74,6 +74,10 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return h.me(ctx, principal)
 	case path == "/me" && method == "PATCH":
 		return h.patchMe(ctx, principal, req.Body)
+	case path == "/me/assistant-byok" && method == "PUT":
+		return h.putAssistantBYOK(ctx, principal, req.Body)
+	case path == "/me/assistant-byok" && method == "DELETE":
+		return h.deleteAssistantBYOK(ctx, principal)
 	case path == "/collections" && method == "GET":
 		return h.listCollections(ctx)
 	case path == "/guitar" && method == "GET":
@@ -343,6 +347,8 @@ func profileErrorToResponse(err error) (events.APIGatewayProxyResponse, error) {
 		return jsonResponse(409, errorResponse{Error: "username is already taken"})
 	case profileapp.IsValidationError(err):
 		return jsonResponse(400, errorResponse{Error: err.Error()})
+	case profileapp.IsBYOKNotConfigured(err):
+		return jsonResponse(503, errorResponse{Error: "assistant BYOK is not configured on the server"})
 	default:
 		return jsonResponse(500, errorResponse{Error: "internal server error"})
 	}

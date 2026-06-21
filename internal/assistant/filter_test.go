@@ -54,7 +54,7 @@ func TestParseRules_UnderPrice(t *testing.T) {
 
 func TestService_Chat_RateLimit(t *testing.T) {
 	limiter := NewMemoryRateLimiter(1)
-	svc := NewService(stubLister{guitars: sampleGuitars()}, RuleLLM{}, limiter)
+	svc := NewService(stubLister{guitars: sampleGuitars()}, RuleLLM{}, limiter, nil, nil)
 	ctx := t.Context()
 	req := ChatRequest{CollectionUserID: "owner-1", Message: "Fender", CallerUserID: "viewer-1"}
 	if _, err := svc.Chat(ctx, req); err != nil {

@@ -37,27 +37,36 @@ func NewDynamoRepository(client DynamoAPI, table, usernameIndex string) *DynamoR
 }
 
 type profileItem struct {
-	UserID             string `dynamodbav:"userId"`
-	Username           string `dynamodbav:"username,omitempty"`
-	Email              string `dynamodbav:"email,omitempty"`
-	MarketCrawlEnabled bool   `dynamodbav:"marketCrawlEnabled,omitempty"`
+	UserID                   string `dynamodbav:"userId"`
+	Username                 string `dynamodbav:"username,omitempty"`
+	Email                    string `dynamodbav:"email,omitempty"`
+	MarketCrawlEnabled       bool   `dynamodbav:"marketCrawlEnabled,omitempty"`
+	AssistantEncryptedAPIKey string `dynamodbav:"assistantEncryptedApiKey,omitempty"`
+	AssistantLLMBaseURL      string `dynamodbav:"assistantLlmBaseUrl,omitempty"`
+	AssistantLLMModel        string `dynamodbav:"assistantLlmModel,omitempty"`
 }
 
 func toItem(profile *domain.Profile) profileItem {
 	return profileItem{
-		UserID:             profile.UserID(),
-		Username:           profile.Username(),
-		Email:              profile.Email(),
-		MarketCrawlEnabled: profile.MarketCrawlEnabled(),
+		UserID:                   profile.UserID(),
+		Username:                 profile.Username(),
+		Email:                    profile.Email(),
+		MarketCrawlEnabled:       profile.MarketCrawlEnabled(),
+		AssistantEncryptedAPIKey: profile.AssistantEncryptedAPIKey(),
+		AssistantLLMBaseURL:      profile.AssistantLLMBaseURL(),
+		AssistantLLMModel:        profile.AssistantLLMModel(),
 	}
 }
 
 func (item profileItem) toDomain() (*domain.Profile, error) {
 	return domain.NewProfile(domain.ProfileProps{
-		UserID:             item.UserID,
-		Username:           item.Username,
-		Email:              item.Email,
-		MarketCrawlEnabled: item.MarketCrawlEnabled,
+		UserID:                   item.UserID,
+		Username:                 item.Username,
+		Email:                    item.Email,
+		MarketCrawlEnabled:       item.MarketCrawlEnabled,
+		AssistantEncryptedAPIKey: item.AssistantEncryptedAPIKey,
+		AssistantLLMBaseURL:      item.AssistantLLMBaseURL,
+		AssistantLLMModel:        item.AssistantLLMModel,
 	})
 }
 

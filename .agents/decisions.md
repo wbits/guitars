@@ -41,11 +41,11 @@ Fixed choices — do not reverse lightly without discussion.
 | Tier | Status | LLM billing | Rate limit |
 |------|--------|-------------|------------|
 | **1 — hosted** | Done | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) | Strict daily cap per Cognito `sub` (default 10/day) |
-| **2 — BYOK** | Planned | Owner API key in settings (encrypted) | Relaxed on operator side; abuse caps only |
+| **2 — BYOK** | Done | Owner API key in settings (encrypted) | Relaxed on operator side; abuse caps only |
 
 Tier 2 BYOK key is intended for **curator assistant chat** and **photo analysis generation** (same encrypted owner key; separate opt-in toggles).
 
-Start with tier 1 only. Tier 2 is documented in [plans/guitars-assistant.md](plans/guitars-assistant.md) but not built yet.
+Start with tier 1 only. Tier 2 BYOK is implemented (profile settings + assistant routing); photo analysis generation still planned.
 
 ## Photo analysis (vision metadata)
 

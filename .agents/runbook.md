@@ -40,9 +40,20 @@ Hosted on the API Lambda. Without `ASSISTANT_LLM_API_KEY`, uses rule-based parsi
 | `ASSISTANT_LLM_BASE_URL` | OpenAI | Compatible API base URL |
 | `ASSISTANT_LLM_MODEL` | `gpt-4o-mini` | Chat model |
 
-Tier 2 (owner BYOK) is planned, not implemented. See [plans/guitars-assistant.md](plans/guitars-assistant.md).
+## Owner BYOK (tier 2)
 
-Webapp: chat on `/collections/:userId` in **guitars-webapp**.
+Owners store an OpenAI-compatible key via `PUT /me/assistant-byok` (webapp Profile page). Keys are AES-256-GCM encrypted at rest.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ASSISTANT_BYOK_ENCRYPTION_KEY` | (empty → BYOK disabled) | Base64-encoded 32-byte AES key |
+| `ASSISTANT_BYOK_DAILY_LIMIT` | `200` | Max assistant messages per day when using owner BYOK on own collection |
+
+When the caller chats on **their own** collection and BYOK is configured, the server uses the owner's key and BYOK rate limit. Visitors on that collection still use tier 1.
+
+Local dev: `env.local.json` includes a fixed dev encryption key (not for production).
+
+Webapp: Profile page in **guitars-webapp**.
 
 ## API — tests, lint, CI
 
