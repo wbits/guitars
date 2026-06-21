@@ -85,6 +85,8 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 		return h.deleteAssistantBYOK(ctx, principal)
 	case path == "/me/reanalyze-collection" && method == "POST":
 		return h.reanalyzeCollection(ctx, principal)
+	case path == "/me/analyze-photo" && method == "POST":
+		return h.analyzePhoto(ctx, principal.UserID, req.Body)
 	case path == "/collections" && method == "GET":
 		return h.listCollections(ctx)
 	case path == "/guitar" && method == "GET":
@@ -284,7 +286,11 @@ func (h *Handler) create(ctx context.Context, ownerID, body string) (events.APIG
 	if err != nil {
 		return errorToResponse(err)
 	}
-	h.triggerAnalysis(ctx, g)
+	if req.SeedAnalysis != nil && h.analysis != nil {
+		_ = h.analysis.SeedFromCatalogAnalysis(ctx, g, seedRequestToCatalogResult(g, *req.SeedAnalysis))
+	} else {
+		h.triggerAnalysis(ctx, g)
+	}
 	return jsonResponse(201, h.toResponseWithAnalysis(ctx, g))
 }
 
@@ -334,6 +340,21 @@ func (h *Handler) setGuitarHidden(ctx context.Context, ownerID, id string, hidde
 		return errorToResponse(err)
 	}
 	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
+}
+
+func (h *Handler) analyzePhoto(ctx context.Context, ownerID, body string) (events.APIGatewayProxyResponse, error) {
+	if h.analysis == nil {
+		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
+	}
+	var req analyzePhotoRequest
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		return jsonResponse(400, errorResponse{Error: "invalid JSON body"})
+	}
+	result, err := h.analysis.AnalyzePictureForCatalog(ctx, ownerID, req.PictureURL)
+	if err != nil {
+		return analysisErrorToResponse(err)
+	}
+	return jsonResponse(200, toAnalyzePhotoResponse(result))
 }
 
 func (h *Handler) reanalyzeCollection(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
@@ -448,6 +469,35 @@ func requestToInput(r guitarRequest) application.GuitarInput {
 	}
 }
 
+func seedRequestToCatalogResult(g *domain.Guitar, seed analysisSeedRequest) guitaranalysis.CatalogAnalysisResult {
+	pictureURL := ""
+	if g != nil && len(g.Pictures()) > 0 {
+		pictureURL = guitaranalysis.CoverPictureURL(g)
+	}
+	return guitaranalysis.CatalogAnalysisResult{
+		PictureURL:    pictureURL,
+		VisualSummary: seed.VisualSummary,
+		Tags:          seed.Tags,
+		Confidence:    seed.Confidence,
+	}
+}
+
+func toAnalyzePhotoResponse(result guitaranalysis.CatalogAnalysisResult) analyzePhotoResponse {
+	return analyzePhotoResponse{
+		PictureURL:    result.PictureURL,
+		VisualSummary: result.VisualSummary,
+		Tags:          result.Tags,
+		Confidence:    result.Confidence,
+		Suggestions: catalogSuggestionsResponse{
+			Brand:       result.Suggestions.Brand,
+			TypeName:    result.Suggestions.TypeName,
+			Color:       result.Suggestions.Color,
+			BuildYear:   result.Suggestions.BuildYear,
+			Description: result.Suggestions.Description,
+		},
+	}
+}
+
 func errorToResponse(err error) (events.APIGatewayProxyResponse, error) {
 	switch {
 	case errors.Is(err, domain.ErrGuitarNotFound):
@@ -478,6 +528,8 @@ func analysisErrorToResponse(err error) (events.APIGatewayProxyResponse, error) 
 	switch {
 	case errors.Is(err, guitaranalysis.ErrBYOKNotConfigured):
 		return jsonResponse(400, errorResponse{Error: "configure an assistant API key before re-analyzing"})
+	case errors.Is(err, guitaranalysis.ErrPhotoAnalysisDisabled):
+		return jsonResponse(400, errorResponse{Error: "enable photo analysis in profile settings"})
 	case profileapp.IsBYOKDecryptFailed(err):
 		return jsonResponse(400, errorResponse{Error: "re-save your assistant API key in profile settings"})
 	case guitaranalysis.IsValidationError(err):

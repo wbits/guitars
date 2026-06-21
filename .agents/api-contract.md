@@ -102,6 +102,7 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 | PUT | `/me/assistant-byok` | Store encrypted owner LLM API key (tier 2) |
 | DELETE | `/me/assistant-byok` | Remove owner LLM API key |
 | POST | `/me/reanalyze-collection` | Re-run photo analysis for all owned guitars with pictures (BYOK required) |
+| POST | `/me/analyze-photo` | Analyze a picture URL for add-from-photo suggestions (BYOK + opt-in required) |
 
 ### GET `/me` — assistant fields
 
@@ -142,6 +143,52 @@ Response **202**:
 | 202 | Jobs enqueued (vision runs asynchronously) |
 | 400 | No assistant API key configured, or BYOK credentials need re-saving |
 | 503 | Photo analysis or queue not configured |
+
+### POST `/me/analyze-photo`
+
+Runs vision synchronously against a picture URL and returns catalog field suggestions for the add-from-photo flow. Requires `photoAnalysisEnabled` and a usable assistant API key.
+
+Request:
+
+```json
+{ "pictureUrl": "https://cdn.example.com/guitar.jpg" }
+```
+
+Response **200**:
+
+```json
+{
+  "pictureUrl": "https://cdn.example.com/guitar.jpg",
+  "visualSummary": "Sunburst Strat with maple neck.",
+  "tags": ["sunburst", "maple-neck"],
+  "confidence": 0.88,
+  "suggestions": {
+    "brand": "Fender",
+    "typeName": "Stratocaster",
+    "color": "Sunburst",
+    "buildYear": 1996,
+    "description": "Sunburst Strat with maple neck."
+  }
+}
+```
+
+Optional `seedAnalysis` on **POST `/guitar`** (owner, add-from-photo flow) stores analysis without re-running vision:
+
+```json
+{
+  "brand": "Fender",
+  "typeName": "Stratocaster",
+  "buildYear": 1996,
+  "priceAmount": 0,
+  "priceCurrency": "EUR",
+  "pictures": ["https://cdn.example.com/guitar.jpg"],
+  "seedAnalysis": {
+    "visualSummary": "Sunburst Strat with maple neck.",
+    "tags": ["sunburst"],
+    "confidence": 0.88
+  }
+}
+```
 
 ### POST `/guitar/{id}/analyze`
 

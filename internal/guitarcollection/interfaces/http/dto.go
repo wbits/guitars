@@ -22,6 +22,33 @@ type guitarRequest struct {
 	BuildYear         int      `json:"buildYear"`
 	PriceAmount       int64    `json:"priceAmount"`
 	PriceCurrency     string   `json:"priceCurrency"`
+	SeedAnalysis      *analysisSeedRequest `json:"seedAnalysis,omitempty"`
+}
+
+type analysisSeedRequest struct {
+	VisualSummary string   `json:"visualSummary"`
+	Tags          []string `json:"tags,omitempty"`
+	Confidence    float64  `json:"confidence,omitempty"`
+}
+
+type analyzePhotoRequest struct {
+	PictureURL string `json:"pictureUrl"`
+}
+
+type catalogSuggestionsResponse struct {
+	Brand       string `json:"brand,omitempty"`
+	TypeName    string `json:"typeName,omitempty"`
+	Color       string `json:"color,omitempty"`
+	BuildYear   int    `json:"buildYear,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type analyzePhotoResponse struct {
+	PictureURL    string                     `json:"pictureUrl"`
+	VisualSummary string                     `json:"visualSummary"`
+	Tags          []string                   `json:"tags,omitempty"`
+	Confidence    float64                    `json:"confidence,omitempty"`
+	Suggestions   catalogSuggestionsResponse `json:"suggestions"`
 }
 
 // guitarAnalysisResponse is AI-detected metadata (advisory, not authoritative).

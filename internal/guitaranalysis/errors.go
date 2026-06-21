@@ -23,3 +23,6 @@ func IsValidationError(err error) bool {
 
 // ErrBYOKNotConfigured indicates the owner has no assistant API key stored.
 var ErrBYOKNotConfigured = errors.New("assistant BYOK is not configured")
+
+// ErrPhotoAnalysisDisabled indicates the owner has not opted in to photo analysis.
+var ErrPhotoAnalysisDisabled = errors.New("photo analysis is not enabled")

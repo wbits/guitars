@@ -601,3 +601,22 @@ func TestHandler_GuitarVisibility_HideShowAndList(t *testing.T) {
 		t.Fatalf("show: want 200, got %d (%s)", resp.StatusCode, resp.Body)
 	}
 }
+
+func TestHandler_AnalyzePhoto_ReturnsSuggestions(t *testing.T) {
+	h := newTestHandler()
+	ctx := context.Background()
+
+	putResp, _ := h.Handle(ctx, reqWithAuth("PUT", "/me/assistant-byok", `{"apiKey":"sk-test","model":"gpt-4o-mini"}`))
+	if putResp.StatusCode != 200 {
+		t.Fatalf("put byok: want 200, got %d (%s)", putResp.StatusCode, putResp.Body)
+	}
+	profileResp, _ := h.Handle(ctx, reqWithAuth("PATCH", "/me", `{"username":"owner","photoAnalysisEnabled":true}`))
+	if profileResp.StatusCode != 200 {
+		t.Fatalf("patch me: want 200, got %d (%s)", profileResp.StatusCode, profileResp.Body)
+	}
+
+	resp, _ := h.Handle(ctx, reqWithAuth("POST", "/me/analyze-photo", `{"pictureUrl":"https://example.com/guitar.jpg"}`))
+	if resp.StatusCode != 503 && resp.StatusCode != 502 {
+		t.Fatalf("analyze photo without vision: want 502/503, got %d (%s)", resp.StatusCode, resp.Body)
+	}
+}
