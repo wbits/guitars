@@ -31,6 +31,8 @@ Fixed choices — do not reverse lightly without discussion.
 - **`.agents/AGENTS.md`** is for coding agents on this repo; product assistant persona is separate.
 - **One tool core** in `mcp/src/tools/`; viewer vs curator = which tools are registered per session.
 - **Viewer delivery:** webapp chat only (filters/explains; should drive gallery UI when possible).
+- **Viewer chat default closed** — collection assistant shows only the “Ask about this collection” trigger until the user opens it; never auto-expand on page load.
+- **v1 gallery filter is client-side** — assistant returns `filter` + `matchingIds`; webapp applies `filterGuitars` locally. No list API query params in v1.
 - **Curator delivery:** webapp owner chat + hosted MCP (Phase 2) for Cursor etc.
 - **Confirm before write** for create/update and market crawl; web research never auto-writes descriptions.
 
@@ -38,10 +40,29 @@ Fixed choices — do not reverse lightly without discussion.
 
 | Tier | Status | LLM billing | Rate limit |
 |------|--------|-------------|------------|
-| **1 — hosted** | Implementing | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) | Strict daily cap per Cognito `sub` (default 10/day) |
+| **1 — hosted** | Done | Operator (`ASSISTANT_LLM_API_KEY` on Lambda) | Strict daily cap per Cognito `sub` (default 10/day) |
 | **2 — BYOK** | Planned | Owner API key in settings (encrypted) | Relaxed on operator side; abuse caps only |
 
+Tier 2 BYOK key is intended for **curator assistant chat** and **photo analysis generation** (same encrypted owner key; separate opt-in toggles).
+
 Start with tier 1 only. Tier 2 is documented in [plans/guitars-assistant.md](plans/guitars-assistant.md) but not built yet.
+
+## Photo analysis (vision metadata)
+
+Discussed 2026-06-21 — not implemented.
+
+- **Generation is tier-2 (BYOK) only** — auto analysis of guitar photos on upload runs with the collection owner's API key (encrypted in settings). Tier 1 does not trigger operator-paid vision jobs.
+- **Owner opt-in** — BYOK key plus an explicit “analyze photos on upload” toggle; upload succeeds even if analysis fails.
+- **Search uses stored metadata for everyone** — once `GuitarAnalysis` (or equivalent) exists, viewer assistant and gallery filtering may use tags/summary; no extra vision cost at query time.
+- **Human fields stay authoritative** — brand, model, year, price, etc. are curator-entered; AI output is advisory (suggest/accept), never silent overwrite.
+- **Async worker** — analyze after save; re-run only when picture set changes (hash diff), not on every field edit.
+- **Trust** — label AI-detected metadata; show confidence where useful.
+
+Implementation belongs in API worker + optional curator UI; see [backlog.md](backlog.md).
+
+## Agent session memory
+
+- **Record decisions via skill** — when the user says `/record-decision` (or similar), follow [`.cursor/skills/record-decision/SKILL.md`](../.cursor/skills/record-decision/SKILL.md) and persist to `.agents/decisions.md`, backlog, plans, or `CONTEXT.md`. Do not commit unless asked.
 
 ## Git
 

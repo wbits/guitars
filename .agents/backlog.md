@@ -9,6 +9,8 @@ Plan: [plans/guitars-assistant.md](plans/guitars-assistant.md). Instructions: [a
 - [x] Client-side `filterGuitars` (no list API query params)
 - [ ] Optional: set `ASSISTANT_LLM_API_KEY` in production for natural-language beyond rules
 - [ ] Tier 2: owner BYOK in webapp settings
+- [ ] Photo analysis on upload (tier-2 BYOK only) — async vision job → `GuitarAnalysis` metadata
+- [ ] Assistant search over analysis metadata (tags + summary; cheap at query time)
 - [ ] Curator webapp chat + hosted MCP (Phase 2)
 - [ ] `research_guitar`, `presign_upload` MCP tools
 - [ ] Cursor rule/skill for `assistants/curator.md`

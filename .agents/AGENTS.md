@@ -19,6 +19,10 @@ Read this file at the start of a session. This repo is the **GuitarCollection AP
 
 After substantive changes, update `.agents/CONTEXT.md` briefly.
 
+## Record decisions (command)
+
+When the user says **`record decision`**, **`/record-decision`**, **`memorize this`**, or **`remember this for the project`**, follow [`.cursor/skills/record-decision/SKILL.md`](../.cursor/skills/record-decision/SKILL.md) and write to `.agents/decisions.md` (and backlog/plans as needed). Do not commit unless asked.
+
 ## Related repos
 
 | Repo | Role |

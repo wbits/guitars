@@ -15,6 +15,7 @@ Instructions and session memory for AI agents live in **[`.agents/AGENTS.md`](.a
 | [`.agents/assistants/`](.agents/assistants/) | guitars-assistant product prompts (viewer / curator) |
 | [`.agents/config/`](.agents/config/) | Example configs (no secrets) |
 | [`.agents/sessions/`](.agents/sessions/) | Session notes |
+| [`.cursor/skills/record-decision/`](.cursor/skills/record-decision/) | **`/record-decision`** — persist design choices to `.agents/` |
 
 **Related repo:** React webapp at [`wbits/guitars-webapp`](https://github.com/wbits/guitars-webapp) — see its [`AGENTS.md`](https://github.com/wbits/guitars-webapp/blob/master/AGENTS.md) for frontend-only docs.
 
