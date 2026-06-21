@@ -23,6 +23,10 @@ After substantive changes, update `.agents/CONTEXT.md` briefly.
 
 When the user says **`record decision`**, **`/record-decision`**, **`memorize this`**, or **`remember this for the project`**, follow [`.cursor/skills/record-decision/SKILL.md`](../.cursor/skills/record-decision/SKILL.md) and write to `.agents/decisions.md` (and backlog/plans as needed). Do not commit unless asked.
 
+## Commit push deploy (command)
+
+When the user says **`/cpd`**, **`cpd`**, or **`commit push deploy`**, follow [`.cursor/skills/cpd/SKILL.md`](../.cursor/skills/cpd/SKILL.md). Load deploy vars from `.agents/config/cpd.env` (see [cpd.env.example](config/cpd.env.example)). `/cpd` is explicit permission to commit, push, and deploy.
+
 ## Related repos
 
 | Repo | Role |
