@@ -60,7 +60,7 @@ func newTestHandler() *Handler {
 		nil,
 	)
 	analysisRepo := analysispersistence.NewMemoryRepository()
-	analysisSvc := guitaranalysis.NewService(analysisRepo, &guitaranalysis.ProfileOwnerLoader{Profiles: profiles}, nil)
+	analysisSvc := guitaranalysis.NewService(analysisRepo, &guitaranalysis.ProfileOwnerLoader{Profiles: profiles}, nil, nil, nil)
 	return NewHandler(svc, marketLogs, profiles, authn, nil, "guitars-admins", assistantSvc, analysisSvc)
 }
 

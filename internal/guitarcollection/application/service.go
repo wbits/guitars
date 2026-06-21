@@ -99,6 +99,11 @@ func (s *Service) UpdateGuitar(ctx context.Context, ownerID, id string, in Guita
 	return g, nil
 }
 
+// FindGuitarByID returns a guitar by id without ownership checks (worker use).
+func (s *Service) FindGuitarByID(ctx context.Context, id string) (*domain.Guitar, error) {
+	return s.repo.FindByID(ctx, id)
+}
+
 // GetGuitar returns a single guitar by id when visible to the caller.
 func (s *Service) GetGuitar(ctx context.Context, ownerID, id string) (*domain.Guitar, error) {
 	g, err := s.repo.FindByID(ctx, id)

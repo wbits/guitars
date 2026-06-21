@@ -311,10 +311,10 @@ func (h *Handler) analyzeGuitar(ctx context.Context, ownerID, id string) (events
 	if h.analysis == nil {
 		return jsonResponse(503, errorResponse{Error: "photo analysis is not configured"})
 	}
-	if _, err := h.analysis.Reanalyze(ctx, g); err != nil {
+	if _, err := h.analysis.QueueReanalyze(ctx, g); err != nil {
 		return analysisErrorToResponse(err)
 	}
-	return jsonResponse(200, h.toResponseWithAnalysis(ctx, g))
+	return jsonResponse(202, h.toResponseWithAnalysis(ctx, g))
 }
 
 func (h *Handler) reanalyzeCollection(ctx context.Context, principal auth.Principal) (events.APIGatewayProxyResponse, error) {
@@ -325,18 +325,18 @@ func (h *Handler) reanalyzeCollection(ctx context.Context, principal auth.Princi
 	if err != nil {
 		return errorToResponse(err)
 	}
-	result, err := h.analysis.ReanalyzeCollection(ctx, principal.UserID, guitars)
+	result, err := h.analysis.QueueReanalyzeCollection(ctx, principal.UserID, guitars)
 	if err != nil {
 		return analysisErrorToResponse(err)
 	}
-	return jsonResponse(200, result)
+	return jsonResponse(202, result)
 }
 
 func (h *Handler) triggerAnalysis(ctx context.Context, g *domain.Guitar) {
 	if h.analysis == nil || g == nil {
 		return
 	}
-	_, _ = h.analysis.ScheduleIfEligible(ctx, g)
+	_ = h.analysis.ScheduleAndQueueIfEligible(ctx, g)
 }
 
 func (h *Handler) toResponseWithAnalysis(ctx context.Context, g *domain.Guitar) guitarResponse {

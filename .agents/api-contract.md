@@ -111,23 +111,27 @@ Guitars without `owner` are hidden from list until updated by an authenticated u
 
 ### POST `/me/reanalyze-collection`
 
-Re-runs vision analysis for every guitar owned by the caller that has pictures. Requires a stored assistant API key. Does not require `photoAnalysisEnabled` (explicit manual action). May take several seconds for large collections.
+Enqueues cover-photo analysis for every owned guitar with a valid cover image. Requires a stored assistant API key. Does not require `photoAnalysisEnabled` (explicit manual action). Returns immediately; vision runs in a background worker.
 
-Response:
+Response **202**:
 
 ```json
 {
   "total": 5,
-  "analyzed": 4,
-  "skipped": 1,
-  "failed": 0
+  "queued": 4,
+  "skipped": 1
 }
 ```
 
 | Status | Meaning |
 |--------|---------|
-| 400 | No assistant API key configured |
-| 502 | One or more vision calls failed (partial progress is persisted) |
+| 202 | Jobs enqueued (vision runs asynchronously) |
+| 400 | No assistant API key configured, or BYOK credentials need re-saving |
+| 503 | Photo analysis or queue not configured |
+
+### POST `/guitar/{id}/analyze`
+
+Enqueues cover-photo analysis for one guitar (owner only). Returns **202** with the guitar object and `analysis.status: "pending"`.
 
 ### PUT `/me/assistant-byok` body
 

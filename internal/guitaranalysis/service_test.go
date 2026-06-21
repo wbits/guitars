@@ -28,7 +28,7 @@ func (s stubOwners) VisionCredentials(_ context.Context, _ string) (guitaranalys
 
 func TestAnalyzeIfEligible_SkipsWhenDisabled(t *testing.T) {
 	repo := persistence.NewMemoryRepository()
-	svc := guitaranalysis.NewService(repo, stubOwners{enabled: false}, nil)
+	svc := guitaranalysis.NewService(repo, stubOwners{enabled: false}, nil, nil, nil)
 	guitar := testGuitar(t)
 	if _, err := svc.AnalyzeIfEligible(context.Background(), guitar); err != nil {
 		t.Fatal(err)
@@ -66,6 +66,8 @@ func TestAnalyzeIfEligible_StoresReadyResult(t *testing.T) {
 			},
 		},
 		vision,
+		nil,
+		nil,
 	)
 	guitar := testGuitar(t)
 	rec, err := svc.AnalyzeIfEligible(context.Background(), guitar)
@@ -101,6 +103,8 @@ func TestScheduleIfEligible_DoesNotCallVision(t *testing.T) {
 			},
 		},
 		vision,
+		nil,
+		nil,
 	)
 	guitar := testGuitar(t)
 	rec, err := svc.ScheduleIfEligible(context.Background(), guitar)
@@ -137,7 +141,7 @@ func TestReanalyze_ForcesRerunWhenReady(t *testing.T) {
 			BaseURL: server.URL,
 		},
 	}
-	svc := guitaranalysis.NewService(repo, owners, vision)
+	svc := guitaranalysis.NewService(repo, owners, vision, nil, nil)
 	guitar := testGuitar(t)
 
 	if _, err := svc.AnalyzeIfEligible(context.Background(), guitar); err == nil {
@@ -181,6 +185,8 @@ func TestAnalyzeIfEligible_SkipsWhenCoverUnchanged(t *testing.T) {
 		repo,
 		stubOwners{enabled: true, ok: true, creds: guitaranalysis.VisionCredentials{APIKey: "sk-test", BaseURL: server.URL}},
 		&guitaranalysis.VisionAnalyzer{Client: server.Client()},
+		nil,
+		nil,
 	)
 	guitar := guitarWithPictures(t, []string{"https://example.com/a.jpg", "https://example.com/b.jpg"}, 0)
 	if _, err := svc.AnalyzeIfEligible(context.Background(), guitar); err != nil {
@@ -217,6 +223,8 @@ func TestReanalyzeCollection_CountsResults(t *testing.T) {
 			},
 		},
 		vision,
+		nil,
+		nil,
 	)
 	withPictures := testGuitar(t)
 	withoutPictures := testGuitar(t)
@@ -229,8 +237,74 @@ func TestReanalyzeCollection_CountsResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Total != 2 || result.Analyzed != 1 || result.Skipped != 1 || result.Failed != 0 {
+	if result.Total != 2 || result.Queued != 1 || result.Skipped != 1 {
 		t.Fatalf("result: %+v", result)
+	}
+}
+
+func TestQueueReanalyze_EnqueuesWithoutVision(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	repo := persistence.NewMemoryRepository()
+	queue := &guitaranalysis.MemoryQueue{}
+	svc := guitaranalysis.NewService(
+		repo,
+		stubOwners{ok: true, creds: guitaranalysis.VisionCredentials{APIKey: "sk-test", BaseURL: server.URL}},
+		&guitaranalysis.VisionAnalyzer{Client: server.Client()},
+		queue,
+		nil,
+	)
+	guitar := testGuitar(t)
+	rec, err := svc.QueueReanalyze(context.Background(), guitar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Status() != guitaranalysis.StatusPending {
+		t.Fatalf("status: %s", rec.Status())
+	}
+	if queue.Len() != 1 {
+		t.Fatalf("queued jobs: %d", queue.Len())
+	}
+	if callCount != 0 {
+		t.Fatalf("vision calls: %d", callCount)
+	}
+}
+
+func TestProcessJob_RunsVision(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]string{"content": `{"visualSummary":"Worker summary.","tags":["worker"],"confidence":0.7}`}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	repo := persistence.NewMemoryRepository()
+	guitar := testGuitar(t)
+	svc := guitaranalysis.NewService(
+		repo,
+		stubOwners{ok: true, creds: guitaranalysis.VisionCredentials{APIKey: "sk-test", BaseURL: server.URL}},
+		&guitaranalysis.VisionAnalyzer{Client: server.Client()},
+		nil,
+		guitaranalysis.GuitarLoaderFunc(func(_ context.Context, _ string) (*domain.Guitar, error) {
+			return guitar, nil
+		}),
+	)
+	if err := svc.ProcessJob(context.Background(), guitaranalysis.Job{GuitarID: "g1", OwnerID: "owner-1", Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := repo.FindByGuitarID(context.Background(), "g1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Status() != guitaranalysis.StatusReady {
+		t.Fatalf("status: %s reason: %s", rec.Status(), rec.FailureReason())
 	}
 }
 

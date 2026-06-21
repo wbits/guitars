@@ -221,11 +221,27 @@ Resources:
         - AttributeName: guitarId
           KeyType: HASH
 
+  GuitarAnalysisDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
+  GuitarAnalysisQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GuitarAnalysisDLQ.Arn
+        maxReceiveCount: 3
+
   GuitarsFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: bootstrap
       CodeUri: ./build/
+      Environment:
+        Variables:
+          GUITAR_ANALYSIS_QUEUE_URL: !Ref GuitarAnalysisQueue
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
@@ -237,6 +253,8 @@ Resources:
             TableName: !Ref AssistantUsageTableName
         - DynamoDBCrudPolicy:
             TableName: !Ref GuitarAnalysisTableName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt GuitarAnalysisQueue.QueueName
         - !If
           - HasImagesBucket
           - Statement:
@@ -408,6 +426,29 @@ Resources:
           Properties:
             Path: /assistant/chat
             Method: options
+
+  GuitarAnalysisWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: bootstrap
+      CodeUri: ./build/worker/
+      Timeout: 120
+      MemorySize: 512
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserProfilesTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GuitarAnalysisTableName
+        - SQSPollerPolicy:
+            QueueName: !GetAtt GuitarAnalysisQueue.QueueName
+      Events:
+        AnalysisQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt GuitarAnalysisQueue.Arn
+            BatchSize: 1
 
   ApiCertificate:
     Type: AWS::CertificateManager::Certificate

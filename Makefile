@@ -1,5 +1,7 @@
 BUILD_DIR        := build
+WORKER_DIR       := $(BUILD_DIR)/worker
 BOOTSTRAP        := $(BUILD_DIR)/bootstrap
+WORKER_BOOTSTRAP := $(WORKER_DIR)/bootstrap
 PACKAGED         := packaged.yaml
 TEMPLATE         := template.yaml
 S3_BUCKET        := $(S3_BUCKET)
@@ -53,12 +55,14 @@ tidy:
 install:
 	GOTOOLCHAIN=local go mod download
 
-## build: cross-compile the lambda binary as build/bootstrap (provided.al2)
+## build: cross-compile API and analysis worker Lambda binaries
 .PHONY: build
 build: clean
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR) $(WORKER_DIR)
 	GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 	    go build -tags lambda.norpc -o $(BOOTSTRAP) ./cmd/lambda
+	GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+	    go build -tags lambda.norpc -o $(WORKER_BOOTSTRAP) ./cmd/analysis-worker
 
 ## clean: remove build artefacts
 .PHONY: clean

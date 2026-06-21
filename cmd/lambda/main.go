@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 
 	"github.com/wbits/guitars/internal/assistant"
@@ -58,6 +59,7 @@ func main() {
 	ddbOpts := []func(*dynamodb.Options){}
 	s3Opts := []func(*s3.Options){}
 	smOpts := []func(*secretsmanager.Options){}
+	sqsOpts := []func(*sqs.Options){}
 	if endpoint := os.Getenv("AWS_ENDPOINT_URL"); endpoint != "" {
 		ddbOpts = append(ddbOpts, func(o *dynamodb.Options) {
 			o.BaseEndpoint = aws.String(endpoint)
@@ -67,6 +69,9 @@ func main() {
 			o.UsePathStyle = true
 		})
 		smOpts = append(smOpts, func(o *secretsmanager.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+		sqsOpts = append(sqsOpts, func(o *sqs.Options) {
 			o.BaseEndpoint = aws.String(endpoint)
 		})
 	}
@@ -144,10 +149,17 @@ func main() {
 	var analysisSvc *guitaranalysis.Service
 	if analysisTable != "" {
 		analysisRepo := analysispersistence.NewDynamoRepository(ddb, analysisTable)
+		var analysisQueue guitaranalysis.JobQueue
+		if queueURL := os.Getenv("GUITAR_ANALYSIS_QUEUE_URL"); queueURL != "" {
+			sqsClient := sqs.NewFromConfig(awsCfg, sqsOpts...)
+			analysisQueue = &guitaranalysis.SQSQueue{Client: sqsClient, QueueURL: queueURL}
+		}
 		analysisSvc = guitaranalysis.NewService(
 			analysisRepo,
 			&guitaranalysis.ProfileOwnerLoader{Profiles: profiles},
 			&guitaranalysis.VisionAnalyzer{},
+			analysisQueue,
+			guitaranalysis.GuitarLoaderFunc(svc.FindGuitarByID),
 		)
 	}
 	assistantSvc := assistant.NewService(

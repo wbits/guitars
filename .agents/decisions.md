@@ -49,13 +49,13 @@ Start with tier 1 only. Tier 2 BYOK is implemented (profile settings + assistant
 
 ## Photo analysis (vision metadata)
 
-Discussed 2026-06-21 — not implemented.
+Implemented 2026-06-21 — SQS queue, DLQ, and worker Lambda.
 
 - **Generation is tier-2 (BYOK) only** — auto analysis of guitar photos on upload runs with the collection owner's API key (encrypted in settings). Tier 1 does not trigger operator-paid vision jobs.
 - **Owner opt-in** — BYOK key plus an explicit “analyze photos on upload” toggle; upload succeeds even if analysis fails.
 - **Search uses stored metadata for everyone** — once `GuitarAnalysis` (or equivalent) exists, viewer assistant and gallery filtering may use tags/summary; no extra vision cost at query time.
 - **Human fields stay authoritative** — brand, model, year, price, etc. are curator-entered; AI output is advisory (suggest/accept), never silent overwrite.
-- **Async worker** — analyze after save; re-run only when the cover picture selection changes (`coverPictureIndex` or cover URL), not when other gallery photos change.
+- **Async worker** — SQS queue + worker Lambda; API enqueues and returns 202. Re-run only when the cover picture selection changes (`coverPictureIndex` or cover URL), not when other gallery photos change.
 - **Cover photo only** — vision analyzes `pictures[coverPictureIndex]` (one image per guitar).
 - **Trust** — label AI-detected metadata; show confidence where useful.
 
