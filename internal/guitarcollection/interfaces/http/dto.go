@@ -119,6 +119,7 @@ type meResponse struct {
 	DisplayName              string `json:"displayName"`
 	IsAdmin                  bool   `json:"isAdmin"`
 	AssistantByokConfigured  bool   `json:"assistantByokConfigured"`
+	AssistantByokNeedsResave bool   `json:"assistantByokNeedsResave,omitempty"`
 	AssistantLlmBaseURL      string `json:"assistantLlmBaseUrl,omitempty"`
 	AssistantLlmModel        string `json:"assistantLlmModel,omitempty"`
 	PhotoAnalysisEnabled     bool   `json:"photoAnalysisEnabled"`

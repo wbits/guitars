@@ -140,3 +140,8 @@ func IsUsernameTaken(err error) bool {
 func IsBYOKNotConfigured(err error) bool {
 	return errors.Is(err, ErrBYOKNotConfigured)
 }
+
+// IsBYOKDecryptFailed reports whether stored BYOK credentials cannot be decrypted.
+func IsBYOKDecryptFailed(err error) bool {
+	return errors.Is(err, ErrBYOKDecryptFailed)
+}

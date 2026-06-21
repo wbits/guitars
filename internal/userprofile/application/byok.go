@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/wbits/guitars/internal/userprofile/domain"
@@ -10,6 +11,10 @@ import (
 
 // ErrBYOKNotConfigured is returned when BYOK endpoints are unavailable.
 var ErrBYOKNotConfigured = errors.New("assistant BYOK is not configured on the server")
+
+// ErrBYOKDecryptFailed is returned when stored credentials cannot be decrypted
+// (for example after the server encryption key changed).
+var ErrBYOKDecryptFailed = errors.New("assistant BYOK credentials could not be decrypted")
 
 // BYOKEncryptor encrypts owner API keys at rest.
 type BYOKEncryptor interface {
@@ -70,6 +75,27 @@ func (s *Service) ClearAssistantBYOK(ctx context.Context, userID, email string) 
 	return profile, nil
 }
 
+// AssistantBYOKMeStatus reports whether BYOK is stored and whether it can be decrypted for use.
+func (s *Service) AssistantBYOKMeStatus(ctx context.Context, userID string) (configured bool, usable bool, err error) {
+	if s == nil || s.repo == nil {
+		return false, false, nil
+	}
+	profile, err := s.repo.FindByUserID(ctx, userID)
+	if err != nil {
+		return false, false, err
+	}
+	if profile == nil || !profile.AssistantBYOKConfigured() {
+		return false, false, nil
+	}
+	_, ok, err := s.AssistantBYOKCredentialsForUser(ctx, userID)
+	if IsBYOKDecryptFailed(err) {
+		return true, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, ok, nil
+}
 // AssistantBYOKSettingsForUser returns client-safe BYOK status for the owner.
 func (s *Service) AssistantBYOKSettingsForUser(ctx context.Context, userID string) (AssistantBYOKSettings, error) {
 	profile, err := s.repo.FindByUserID(ctx, userID)
@@ -100,7 +126,7 @@ func (s *Service) AssistantBYOKCredentialsForUser(ctx context.Context, userID st
 	}
 	apiKey, err := s.byokEncryptor.Decrypt(profile.AssistantEncryptedAPIKey())
 	if err != nil {
-		return AssistantBYOKCredentials{}, false, err
+		return AssistantBYOKCredentials{}, false, fmt.Errorf("%w: %v", ErrBYOKDecryptFailed, err)
 	}
 	return AssistantBYOKCredentials{
 		APIKey:  apiKey,

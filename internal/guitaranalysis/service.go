@@ -94,7 +94,10 @@ func (s *Service) ReanalyzeCollection(ctx context.Context, ownerID string, guita
 			result.Skipped++
 			continue
 		}
-		if _, err := s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true, runVision: true}); err != nil {
+		if rec, err := s.analyze(ctx, guitar, analyzeOpts{requireOptIn: false, force: true, runVision: true}); err != nil {
+			result.Failed++
+			continue
+		} else if rec == nil || rec.Status() != StatusReady {
 			result.Failed++
 			continue
 		}
@@ -165,7 +168,7 @@ func (s *Service) analyze(ctx context.Context, guitar *domain.Guitar, opts analy
 	if err != nil {
 		record.SetFailed(fingerprint, err.Error())
 		_ = s.repo.Save(ctx, record)
-		return record, fmt.Errorf("analyze guitar %s: %w", guitar.ID(), err)
+		return record, nil
 	}
 	record.SetReady(fingerprint, result.VisualSummary, result.Tags, result.Confidence)
 	if err := s.repo.Save(ctx, record); err != nil {

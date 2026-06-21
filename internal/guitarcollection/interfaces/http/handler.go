@@ -150,7 +150,14 @@ func (h *Handler) me(ctx context.Context, principal auth.Principal) (events.APIG
 	if err != nil {
 		return profileErrorToResponse(err)
 	}
-	return jsonResponse(200, toMeResponse(profile, isAdmin))
+	resp := toMeResponse(profile, isAdmin)
+	configured, usable, err := h.profiles.AssistantBYOKMeStatus(ctx, principal.UserID)
+	if err != nil {
+		return profileErrorToResponse(err)
+	}
+	resp.AssistantByokConfigured = usable
+	resp.AssistantByokNeedsResave = configured && !usable
+	return jsonResponse(200, resp)
 }
 
 func (h *Handler) patchMe(ctx context.Context, principal auth.Principal, body string) (events.APIGatewayProxyResponse, error) {
@@ -441,6 +448,8 @@ func profileErrorToResponse(err error) (events.APIGatewayProxyResponse, error) {
 		return jsonResponse(400, errorResponse{Error: err.Error()})
 	case profileapp.IsBYOKNotConfigured(err):
 		return jsonResponse(503, errorResponse{Error: "assistant BYOK is not configured on the server"})
+	case profileapp.IsBYOKDecryptFailed(err):
+		return jsonResponse(400, errorResponse{Error: "re-save your assistant API key in profile settings"})
 	default:
 		return jsonResponse(500, errorResponse{Error: "internal server error"})
 	}
@@ -450,6 +459,8 @@ func analysisErrorToResponse(err error) (events.APIGatewayProxyResponse, error) 
 	switch {
 	case errors.Is(err, guitaranalysis.ErrBYOKNotConfigured):
 		return jsonResponse(400, errorResponse{Error: "configure an assistant API key before re-analyzing"})
+	case profileapp.IsBYOKDecryptFailed(err):
+		return jsonResponse(400, errorResponse{Error: "re-save your assistant API key in profile settings"})
 	case guitaranalysis.IsValidationError(err):
 		return jsonResponse(400, errorResponse{Error: err.Error()})
 	default:
